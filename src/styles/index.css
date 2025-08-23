@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+#root,
+.container {
+  @apply bg-gray-100 text-gray-900 w-screen h-screen;
+}
