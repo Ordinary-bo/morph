@@ -4,5 +4,5 @@ import { createFile, FILE } from "../utils";
 const DEFAULT_PAC_DOMAIN = ["google.com"];
 
 export const createPacFile = async () => {
-  createFile(FILE.pacJson, DEFAULT_PAC_DOMAIN);
+  await createFile(FILE.pacJson, DEFAULT_PAC_DOMAIN);
 };

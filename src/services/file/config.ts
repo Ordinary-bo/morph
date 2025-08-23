@@ -14,13 +14,13 @@ const DEFAULT_CONFIG = {
   // pac代理模式 http | socks5/socks4/http
   pacMode: "http",
   // 日志级别
-  globalMode: 'http', // socks4 | http
+  globalMode: "http", // socks4 | http
   // 是否允许局域网
   allowLAN: true,
   // 是否开启自启
-  autoStart: false
+  autoStart: false,
 };
 
 export const createConfigFile = async () => {
-  createFile(FILE.configJson, DEFAULT_CONFIG);
+  await createFile(FILE.configJson, DEFAULT_CONFIG);
 };

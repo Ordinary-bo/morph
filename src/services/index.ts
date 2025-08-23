@@ -5,9 +5,8 @@ import { createServersFile } from "./file/servers";
 import { createSubscriptionsFile } from "./file/subscriptions";
 import { createConfigDir } from "./utils";
 
-async function init() {
+export async function init() {
   await createConfigDir();
-
   // 配置文件
   await createConfigFile();
   // PAC文件
@@ -19,4 +18,3 @@ async function init() {
   // 服务器文件
   await createServersFile();
 }
-init();

@@ -1,49 +1,28 @@
 import { useEffect, useState } from "react";
 import {
+  SubscriptionDomain,
   addSubscription,
   getSubscriptions,
   removeSubscription,
-  SubscriptionDomain,
+  updateSubscription,
 } from "../../services/file/subscriptions";
-import {
-  Button,
-  Table,
-  Input,
-  Form,
-  Switch,
-  Modal,
-  Typography,
-  Card,
-} from "antd";
+import { Button, Table, Input, Form, Switch,  Card } from "antd";
 import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import useApp from "antd/es/app/useApp";
 
-const { Title } = Typography;
-const { Search } = Input;
-
 const Subscriptions = () => {
-  const { message: messageApi } = useApp();
-  const [subscriptions, setSubscriptions] = useState<SubscriptionItem[]>([]);
-  const [filteredSubscriptions, setFilteredSubscriptions] = useState<SubscriptionItem[]>([]);
+  const { message: messageApi, modal } = useApp();
+  const [subscriptions, setSubscriptions] = useState<SubscriptionDomain[]>([]);
   const [loading, setLoading] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
-  const [searchText, setSearchText] = useState("");
-
   // 获取订阅列表
   const fetchSubscriptions = async () => {
     setLoading(true);
     try {
       const subs = await getSubscriptions();
-      // 将对象转换为数组
-      const subsArray = Object.entries(subs).map(([domain, enabled]) => ({
-        domain,
-        enabled,
-        key: domain,
-      }));
-      setSubscriptions(subsArray);
-      setFilteredSubscriptions(subsArray);
+      setSubscriptions(subs);
     } catch (error) {
-      console.error("Error fetching subscriptions:", error);
+      console.log("error:", error);
       messageApi.error("获取订阅列表失败");
     } finally {
       setLoading(false);
@@ -54,23 +33,11 @@ const Subscriptions = () => {
     fetchSubscriptions();
   }, []);
 
-  // 处理搜索
-  useEffect(() => {
-    if (searchText) {
-      const filtered = subscriptions.filter((sub) =>
-        sub.domain.toLowerCase().includes(searchText.toLowerCase())
-      );
-      setFilteredSubscriptions(filtered);
-    } else {
-      setFilteredSubscriptions(subscriptions);
-    }
-  }, [searchText, subscriptions]);
-
   // 添加订阅
-  const handleAddSubscription = async (values: { name: string }) => {
+  const handleAddSubscription = async (values: { domain: string }) => {
     setAddLoading(true);
     try {
-      await addSubscription(values.name);
+      await addSubscription(values.domain);
       messageApi.success("订阅已添加");
       fetchSubscriptions();
     } catch (error) {
@@ -82,7 +49,7 @@ const Subscriptions = () => {
 
   // 删除订阅
   const handleRemove = async (domain: string) => {
-    Modal.confirm({
+    modal.confirm({
       title: "确认删除",
       content: `确定要删除订阅 "${domain}" 吗？`,
       onOk: async () => {
@@ -100,12 +67,9 @@ const Subscriptions = () => {
   // 切换订阅状态
   const handleToggleStatus = async (domain: string, enabled: boolean) => {
     try {
-      await updateSubscriptionStatus(domain, enabled);
+      await updateSubscription(domain, enabled);
       messageApi.success(`订阅已${enabled ? "启用" : "禁用"}`);
-      // 更新本地状态
-      setSubscriptions((prev) =>
-        prev.map((sub) => (sub.domain === domain ? { ...sub, enabled } : sub))
-      );
+      fetchSubscriptions();
     } catch (error) {
       messageApi.error("状态更新失败");
       // 恢复原状态
@@ -132,16 +96,15 @@ const Subscriptions = () => {
       title: "订阅域名",
       dataIndex: "domain",
       key: "domain",
-      render: (text: string) => <span>{text}</span>,
     },
     {
       title: "状态",
-      dataIndex: "enabled",
-      key: "enabled",
+      dataIndex: "status",
+      key: "status",
       width: 100,
-      render: (enabled: boolean, record: SubscriptionItem) => (
+      render: (status: boolean, record: SubscriptionDomain) => (
         <Switch
-          checked={enabled}
+          checked={status}
           onChange={(checked) => handleToggleStatus(record.domain, checked)}
         />
       ),
@@ -150,7 +113,7 @@ const Subscriptions = () => {
       title: "操作",
       key: "action",
       width: 100,
-      render: (_, record: SubscriptionItem) => (
+      render: (_: any, record: SubscriptionDomain) => (
         <Button
           icon={<DeleteOutlined />}
           danger
@@ -163,12 +126,10 @@ const Subscriptions = () => {
 
   return (
     <div className="p-4 h-full flex flex-col">
-      <Title level={2}>订阅管理</Title>
-      
       <Card className="mb-4">
         <Form onFinish={handleAddSubscription} layout="inline">
           <Form.Item
-            name="name"
+            name="domain"
             rules={[{ required: true, message: "请输入订阅名称" }]}
             className="flex-1 mb-2 md:mb-0"
           >
@@ -188,21 +149,14 @@ const Subscriptions = () => {
       </Card>
 
       <Card className="flex-1 flex flex-col">
-        <div className="flex justify-between items-center mb-4">
-          <Search
-            placeholder="搜索订阅"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            className="w-64"
-          />
-          <Button type="primary" onClick={handleUpdateAll} loading={loading}>
-            更新所有订阅
-          </Button>
-        </div>
+        <Button  onClick={handleUpdateAll} loading={loading}>
+          更新所有订阅
+        </Button>
 
         <Table
+          rowKey="domain"
           columns={columns}
-          dataSource={filteredSubscriptions}
+          dataSource={subscriptions}
           loading={loading}
           pagination={{ pageSize: 10 }}
           scroll={{ y: 400 }}
