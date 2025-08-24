@@ -1,17 +1,21 @@
-import { useRoutes } from "react-router";
-import Subscriptions from "../pages/subscriptions";
+import { NavLink, useRoutes } from "react-router";
+import Subscriptions from "../pages/Subscriptions";
 import Home from "../pages/Home";
 
 const AppRoutes = () => {
   return useRoutes([
     {
-      path: "/",
+      path: "/home",
       element: <Home />,
     },
     {
       path: "/subscriptions",
       element: <Subscriptions />,
     },
+    {
+      path: "/",
+      element: <NavLink to="/home"/>
+    }
   ]);
 };
 
