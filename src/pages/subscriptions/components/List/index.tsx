@@ -8,11 +8,8 @@ import {
   getSubscriptions,
   removeSubscription,
   updateSubscription,
+  updateSubscriptions,
 } from "../../../../services/file/subscriptions";
-import { parseSubscription, transformToConfig } from "../../../../utils/subscribeParser";
-import { Base64 } from "js-base64";
-import request from "../../../../utils/request";
-import { addServersBatch } from "../../../../services/file/servers";
 
 const List = () => {
   const [loading, setLoading] = useState(false);
@@ -121,14 +118,13 @@ const List = () => {
   }, []);
 
   const handleSubscription = async () => {
-    subscriptions.forEach(async (sub) => {
-      if (sub.status) {
-        const response = await request<string>(sub.domain);
-        const servers = parseSubscription(response);
-        console.log('transformToConfig(servers):', transformToConfig(servers));
-        addServersBatch(transformToConfig(servers));
-      }
-    });
+    try {
+      updateSubscriptions()
+      message.success("订阅解析成功");
+    } catch (error) {
+      console.error("解析订阅失败:", error);
+      message.error("解析订阅失败，请检查订阅链接是否正确");
+    }
   };
 
   return (

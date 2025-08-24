@@ -1,26 +1,17 @@
 import React, { useEffect, useState } from "react";
-import { Table, Button, Switch, Modal, Input, message } from "antd";
+import { Table, Button, Switch, Modal, message, Flex } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
-import { getServers } from "../../services/file/servers";
+import { DeleteOutlined } from "@ant-design/icons";
+import { ServerConfig, getServers } from "../../services/file/servers";
+import { updateSubscriptions } from "../../services/file/subscriptions";
 
 // 服务器类型定义
-interface Server {
-  protocol: string;
-  type: string;
-  server: string;
-  port: number;
-  password: string;
-  name: string;
-  encryption: string;
-  params?: Record<string, string>;
-  status?: boolean; // 新增状态
-}
+type Server = {
+  status?: boolean;
+} & ServerConfig;
 
 const Home: React.FC = () => {
   const [servers, setServers] = useState<Server[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newServer, setNewServer] = useState<Partial<Server>>({ status: true });
 
   const getData = async () => {
     const result = await getServers();
@@ -29,7 +20,7 @@ const Home: React.FC = () => {
 
   // 示例初始化数据
   useEffect(() => {
-    getData()
+    getData();
   }, []);
 
   // 删除服务器
@@ -48,18 +39,6 @@ const Home: React.FC = () => {
     setServers((prev) =>
       prev.map((s) => (s === record ? { ...s, status: checked } : s))
     );
-  };
-
-  // 新增服务器
-  const handleAddServer = () => {
-    if (!newServer.server || !newServer.port || !newServer.name) {
-      message.error("请填写服务器、端口和名称");
-      return;
-    }
-    setServers((prev) => [...prev, newServer as Server]);
-    setIsModalOpen(false);
-    setNewServer({ status: true });
-    message.success("添加成功");
   };
 
   const columns: ColumnsType<Server> = [
@@ -94,83 +73,30 @@ const Home: React.FC = () => {
     },
   ];
 
+  const handleSubscription = async () => {
+    try {
+      updateSubscriptions();
+      message.success("订阅解析成功");
+    } catch (error) {
+      console.error("解析订阅失败:", error);
+      message.error("解析订阅失败，请检查订阅链接是否正确");
+    }
+  };
   return (
-    <div style={{ padding: 20 }}>
-      <Button
-        type="primary"
-        icon={<PlusOutlined />}
-        onClick={() => setIsModalOpen(true)}
-        style={{ marginBottom: 16 }}
-      >
-        新增服务器
-      </Button>
-
+    <div>
+      <Flex>
+        <Button type="primary" onClick={getData}>
+          刷新服务器列表
+        </Button>
+        <Button onClick={handleSubscription}>更新所有订阅</Button>
+        <Button>控制台</Button>
+        <Button>测数</Button>
+      </Flex>
       <Table<Server>
-        rowKey={(record) => `${record.server}:${record.port}`}
+        rowKey={(record) => record.id}
         columns={columns}
         dataSource={servers}
-        pagination={{ pageSize: 5 }}
       />
-
-      <Modal
-        title="新增服务器"
-        open={isModalOpen}
-        onOk={handleAddServer}
-        onCancel={() => setIsModalOpen(false)}
-      >
-        <Input
-          placeholder="服务器"
-          value={newServer.server}
-          onChange={(e) =>
-            setNewServer({ ...newServer, server: e.target.value })
-          }
-          style={{ marginBottom: 8 }}
-        />
-        <Input
-          placeholder="端口"
-          type="number"
-          value={newServer.port}
-          onChange={(e) =>
-            setNewServer({ ...newServer, port: Number(e.target.value) })
-          }
-          style={{ marginBottom: 8 }}
-        />
-        <Input
-          placeholder="名称"
-          value={newServer.name}
-          onChange={(e) => setNewServer({ ...newServer, name: e.target.value })}
-          style={{ marginBottom: 8 }}
-        />
-        <Input
-          placeholder="协议"
-          value={newServer.protocol}
-          onChange={(e) =>
-            setNewServer({ ...newServer, protocol: e.target.value })
-          }
-          style={{ marginBottom: 8 }}
-        />
-        <Input
-          placeholder="类型"
-          value={newServer.type}
-          onChange={(e) => setNewServer({ ...newServer, type: e.target.value })}
-          style={{ marginBottom: 8 }}
-        />
-        <Input
-          placeholder="密码"
-          value={newServer.password}
-          onChange={(e) =>
-            setNewServer({ ...newServer, password: e.target.value })
-          }
-          style={{ marginBottom: 8 }}
-        />
-        <Input
-          placeholder="加密"
-          value={newServer.encryption}
-          onChange={(e) =>
-            setNewServer({ ...newServer, encryption: e.target.value })
-          }
-        />
-      </Modal>
     </div>
   );
 };

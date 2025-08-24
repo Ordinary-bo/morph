@@ -1,5 +1,11 @@
 import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { createFile, FILE, getConfigDir } from "../utils";
+import request from "../../utils/request";
+import {
+  parseSubscription,
+  transformToConfig,
+} from "../../utils/subscribeParser";
+import { addServersBatch } from "./servers";
 
 // 默认订阅域名
 const DEFAULT_SUBSCRIPTIONS_DOMAIN: SubscriptionDomain[] = [
@@ -74,4 +80,15 @@ export const removeSubscription = async (domain: string) => {
   const updated = parsed.filter((sub) => sub.domain !== domain);
 
   await writeTextFile(path, JSON.stringify(updated, null, 2));
+};
+
+export const updateSubscriptions = async () => {
+  const subscriptions = await getSubscriptions();
+  subscriptions.forEach(async (sub) => {
+    if (sub.status) {
+      const response = await request<string>(sub.domain);
+      const servers = parseSubscription(response);
+      addServersBatch(transformToConfig(servers));
+    }
+  });
 };

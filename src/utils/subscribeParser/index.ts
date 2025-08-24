@@ -5,6 +5,8 @@ import { ServerConfig } from "../../services/file/servers";
  * 表示一个 Trojan 类型的服务器配置
  */
 type TrojanServer = {
+  /** 唯一标识符，通常用于前端显示和管理 */
+  id: string;
   /** 服务器类型，固定为 'trojan' */
   type: "trojan";
   /** 登录密码 */
@@ -23,6 +25,8 @@ type TrojanServer = {
  * 表示一个 Shadowsocks (SS) 类型的服务器配置
  */
 type SSServer = {
+  /** 唯一标识符，通常用于前端显示和管理 */
+  id: string;
   /** 服务器类型，固定为 'ss' */
   type: "ss";
   /** 加密方法，例如 aes-128-gcm */
@@ -40,7 +44,6 @@ type SSServer = {
 /**
  * 通用服务器配置对象，用于前端或程序统一处理不同协议的服务器
  */
-
 
 export function parseSubscription(
   rawData: string
@@ -67,6 +70,7 @@ export function parseSubscription(
             });
           }
           servers.push({
+            id: crypto.randomUUID(), // 生成唯一 ID
             type: "trojan",
             password,
             host,
@@ -83,6 +87,7 @@ export function parseSubscription(
           const decoded = Base64.decode(encoded); // 使用 js-base64
           const [method, password] = decoded.split(":");
           servers.push({
+            id: crypto.randomUUID(), // 生成唯一 ID
             type: "ss",
             method,
             password,
@@ -106,8 +111,8 @@ export function transformToConfig(
   return servers.map((server) => {
     if (server.type === "trojan") {
       return {
-        protocol: "trojan",
-        type: server.type.toUpperCase(),
+        id: server.id,
+        type: server.type.toLocaleLowerCase(),
         server: server.host,
         port: server.port,
         password: server.password,
@@ -117,8 +122,8 @@ export function transformToConfig(
       };
     } else if (server.type === "ss") {
       return {
-        protocol: "ss",
-        type: server.type.toUpperCase(),
+        id: server.id,
+        type: server.type.toLocaleLowerCase(),
         server: server.host,
         port: server.port,
         password: server.password,

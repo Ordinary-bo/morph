@@ -2,9 +2,8 @@ import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { createFile, FILE, getConfigDir } from "../utils";
 
 export type ServerConfig = {
+  id: string; // 唯一标识符，通常为 UUID
   /** 协议类型，例如 'trojan' 或 'ss' */
-  protocol: string;
-  /** 类型，通常为大写的协议名称 */
   type: string;
   /** 服务器地址或域名 */
   server: string;
