@@ -1,9 +1,25 @@
 import { AppstoreOutlined, HomeOutlined } from "@ant-design/icons";
-import { Layout as AntdLayout, Menu } from "antd";
+import { Layout as AntdLayout, Button, Menu } from "antd";
 import { FC, ReactNode, useState } from "react";
 import { Link, useLocation } from "react-router";
+import { Window } from "@tauri-apps/api/window";
+import {
+  TerminalSvgIcon,
+  WinUIOpCloseSvgIcon,
+  WinUIOpMaxSvgIcon,
+  WinUIOpMinSvgIcon,
+  WinUIOpRestoreSvgIcon,
+} from "../assets/svg";
 
+const appWindow = new Window("main");
 const { Sider, Content } = AntdLayout;
+
+const icons = {
+  min: <WinUIOpMinSvgIcon />,
+  max: <WinUIOpMaxSvgIcon />,
+  restore: <WinUIOpRestoreSvgIcon />,
+  close: <WinUIOpCloseSvgIcon />,
+};
 
 const items = [
   {
@@ -22,26 +38,52 @@ const Layout: FC<{
   children?: ReactNode;
 }> = ({ children }) => {
   const [collapsed, setCollapsed] = useState(true);
+  const [isMaximized, setIsMaximized] = useState(false);
 
   return (
-    <AntdLayout className="h-full">
-      <Sider
-        width={200}
-        className="!bg-white"
-        collapsible
-        collapsed={collapsed}
-        onCollapse={(value) => setCollapsed(value)}
-      >
-        <div className="h-12 flex items-center justify-center text-xl font-bold">
-          MyApp
+    <div  className="h-full flex flex-col">
+      <div className="flex justify-between h-9 bg-white select-none app-drag">
+        <div>
+          <Button color="default" variant="link"><TerminalSvgIcon/></Button>
         </div>
-        <SidebarMenu />
-      </Sider>
+        <div className=" text-white app-no-drag">
+          <Button onClick={appWindow.minimize} color="default" variant="link">
+            {icons.min}
+          </Button>
+          <Button
+            onClick={() => {
+              appWindow.toggleMaximize();
+              setIsMaximized((prev) => !prev);
+            }}
+            color="default"
+            variant="link"
+          >
+            {isMaximized ? icons.restore : icons.max}
+          </Button>
+          <Button onClick={appWindow.close} color="default" variant="link">
+            {icons.close}
+          </Button>
+        </div>
+      </div>
+      <AntdLayout className="flex-1">
+        <Sider
+          width={200}
+          className="!bg-white"
+          collapsible
+          collapsed={collapsed}
+          onCollapse={(value) => setCollapsed(value)}
+        >
+          <div className="h-12 flex items-center justify-center text-xl font-bold">
+            MyApp
+          </div>
+          <SidebarMenu />
+        </Sider>
 
-      <AntdLayout className="bg-gray-50">
-        <Content className="p-4 overflow-auto">{children}</Content>
+        <AntdLayout className="bg-gray-50">
+          <Content className="p-4 overflow-auto">{children}</Content>
+        </AntdLayout>
       </AntdLayout>
-    </AntdLayout>
+    </div>
   );
 };
 
