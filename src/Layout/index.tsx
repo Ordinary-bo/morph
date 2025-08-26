@@ -1,8 +1,7 @@
 import { AppstoreOutlined, HomeOutlined } from "@ant-design/icons";
 import { Layout as AntdLayout, Menu } from "antd";
-import { FC, ReactNode, useMemo } from "react";
+import { FC, ReactNode, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router";
-import AppRoutes from "../router";
 
 const { Header, Sider, Content } = AntdLayout;
 
@@ -29,6 +28,7 @@ const Layout: FC<{
   children?: ReactNode;
 }> = ({ children }) => {
   const location = useLocation();
+  const [collapsed, setCollapsed] = useState(true);
   // 设置文档标题
   const title = useMemo(() => {
     const currentItem = items.find((item) => item.key === location.pathname);
@@ -37,7 +37,13 @@ const Layout: FC<{
 
   return (
     <AntdLayout className="h-full">
-      <Sider width={200} className="!bg-white ">
+      <Sider
+        width={200}
+        className="!bg-white"
+        collapsible
+        collapsed={collapsed}
+        onCollapse={(value) => setCollapsed(value)}
+      >
         <div className="h-12 flex items-center justify-center text-xl font-bold">
           MyApp
         </div>

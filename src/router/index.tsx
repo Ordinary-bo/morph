@@ -1,4 +1,4 @@
-import { NavLink, useRoutes } from "react-router";
+import { Navigate, useRoutes } from "react-router";
 import Subscriptions from "../pages/Subscriptions";
 import Home from "../pages/Home";
 
@@ -14,7 +14,7 @@ const AppRoutes = () => {
     },
     {
       path: "/",
-      element: <NavLink to="/home"/>
+      element: <Navigate to="/home" />
     }
   ]);
 };
