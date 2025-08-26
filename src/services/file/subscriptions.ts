@@ -88,7 +88,7 @@ export const updateSubscriptions = async () => {
     if (sub.status) {
       const response = await request<string>(sub.domain);
       const servers = parseSubscription(response);
-      addServersBatch(transformToConfig(servers));
+      await addServersBatch(transformToConfig(servers));
     }
   });
 };

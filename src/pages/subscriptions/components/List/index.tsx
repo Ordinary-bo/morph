@@ -33,8 +33,8 @@ const List = () => {
     setLoading(true);
     try {
       // 这里实现更新所有订阅的逻辑
+      await fetchSubscriptions();
       message.success("订阅更新成功");
-      fetchSubscriptions();
     } catch (error) {
       message.error("订阅更新失败");
       setLoading(false);
@@ -119,7 +119,7 @@ const List = () => {
 
   const handleSubscription = async () => {
     try {
-      updateSubscriptions()
+      await updateSubscriptions();
       message.success("订阅解析成功");
     } catch (error) {
       console.error("解析订阅失败:", error);

@@ -1,102 +1,127 @@
-import React, { useEffect, useState } from "react";
-import { Table, Button, Switch, Modal, message, Flex } from "antd";
-import type { ColumnsType } from "antd/es/table";
-import { DeleteOutlined } from "@ant-design/icons";
+import React, { useEffect, useState, useRef } from "react";
+import { Button, Card, Flex, Tag, Tooltip } from "antd";
 import { ServerConfig, getServers } from "../../services/file/servers";
 import { updateSubscriptions } from "../../services/file/subscriptions";
+import useApp from "antd/es/app/useApp";
+import LatencyWorker from "../../worker/latencyWorker.ts?worker";
+import { getLatencyColor } from "../../utils/color";
 
-// 服务器类型定义
 type Server = {
-  status?: boolean;
+  latency?: number;
 } & ServerConfig;
 
 const Home: React.FC = () => {
   const [servers, setServers] = useState<Server[]>([]);
+  const { message } = useApp();
+  const workerRef = useRef<Worker>(null);
+
+  const [loadingRefresh, setLoadingRefresh] = useState(false);
+  const [loadingSubscription, setLoadingSubscription] = useState(false);
+  const [loadingTest, setLoadingTest] = useState(false);
+  const [_, setPendingTests] = useState(0);
 
   const getData = async () => {
-    const result = await getServers();
-    setServers(result);
+    setLoadingRefresh(true);
+    try {
+      const result = await getServers();
+      setServers(result);
+    } finally {
+      setLoadingRefresh(false);
+    }
   };
-
-  // 示例初始化数据
-  useEffect(() => {
-    getData();
-  }, []);
-
-  // 删除服务器
-  const handleDelete = (record: Server) => {
-    Modal.confirm({
-      title: "确认删除该服务器吗？",
-      onOk: () => {
-        setServers((prev) => prev.filter((s) => s !== record));
-        message.success("删除成功");
-      },
-    });
-  };
-
-  // 切换状态
-  const handleToggleStatus = (checked: boolean, record: Server) => {
-    setServers((prev) =>
-      prev.map((s) => (s === record ? { ...s, status: checked } : s))
-    );
-  };
-
-  const columns: ColumnsType<Server> = [
-    {
-      title: "状态",
-      dataIndex: "status",
-      render: (_, record) => (
-        <Switch
-          checked={record.status}
-          onChange={(checked) => handleToggleStatus(checked, record)}
-        />
-      ),
-    },
-    { title: "协议", dataIndex: "protocol" },
-    { title: "类型", dataIndex: "type" },
-    { title: "服务器", dataIndex: "server" },
-    { title: "端口", dataIndex: "port" },
-    { title: "密码", dataIndex: "password" },
-    { title: "名称", dataIndex: "name" },
-    { title: "加密", dataIndex: "encryption" },
-    {
-      title: "操作",
-      render: (_, record) => (
-        <Button
-          danger
-          icon={<DeleteOutlined />}
-          onClick={() => handleDelete(record)}
-        >
-          删除
-        </Button>
-      ),
-    },
-  ];
 
   const handleSubscription = async () => {
+    setLoadingSubscription(true);
     try {
-      updateSubscriptions();
+      await updateSubscriptions();
       message.success("订阅解析成功");
     } catch (error) {
       console.error("解析订阅失败:", error);
       message.error("解析订阅失败，请检查订阅链接是否正确");
+    } finally {
+      setLoadingSubscription(false);
     }
   };
+
+  const handleTestLatency = () => {
+    if (workerRef.current && servers.length > 0) {
+      setLoadingTest(true);
+      setPendingTests(servers.length);
+      workerRef.current.postMessage(servers);
+    }
+  };
+
+  useEffect(() => {
+    getData();
+
+    workerRef.current = new LatencyWorker();
+    workerRef.current.onmessage = (
+      event: MessageEvent<{ id: string; latency: number }>
+    ) => {
+      setServers((prev) =>
+        prev.map((s) =>
+          s.id === event.data.id ? { ...s, latency: event.data.latency } : s
+        )
+      );
+      
+      setPendingTests((prev) => {
+        const remaining = prev - 1;
+        if (remaining <= 0) setLoadingTest(false);
+        return remaining;
+      });
+    };
+
+    return () => {
+      workerRef.current?.terminate();
+    };
+  }, []);
+
   return (
     <div>
-      <Flex>
-        <Button type="primary" onClick={getData}>
-          刷新服务器列表
+      <Flex justify="start" gap={12} style={{ marginBottom: 16 }}>
+        <Button loading={loadingRefresh} type="primary" onClick={getData}>
+          刷新列表
         </Button>
-        <Button onClick={handleSubscription}>更新所有订阅</Button>
-        <Button>控制台</Button>
-        <Button>测数</Button>
+        <Button
+          loading={loadingSubscription}
+          type="default"
+          onClick={handleSubscription}
+        >
+          更新订阅
+        </Button>
+        <Button loading={loadingTest} type="dashed" onClick={handleTestLatency}>
+          测速
+        </Button>
       </Flex>
-      <Table<Server>
-        rowKey={(record) => record.id}
-        columns={columns}
-        dataSource={servers}
-      />
+
+      <Flex wrap gap={20}>
+        {servers.map((item) => (
+          <Card
+            key={item.id}
+            size="small"
+            title={<Tooltip title={item.name}>{item.name}</Tooltip>}
+            extra={<Button type="link">连接</Button>}
+            style={{
+              width: 210,
+              borderRadius: 8,
+              boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+            }}
+          >
+            <p>
+              <Tag color="blue">{item.type}</Tag>
+               <Tag color="purple">{item.port}</Tag>
+                <Tag color="pink">{item.encryption}</Tag>
+            </p>
+            <p>{item.server}</p>
+            <p>
+              延迟:
+              <span style={{ color: getLatencyColor(item.latency) }}>
+                {item.latency == null ? "--" : item.latency + " ms"}
+              </span>
+            </p>
+          </Card>
+        ))}
+      </Flex>
     </div>
   );
 };
