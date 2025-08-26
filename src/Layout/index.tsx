@@ -10,6 +10,7 @@ import {
   WinUIOpMinSvgIcon,
   WinUIOpRestoreSvgIcon,
 } from "../assets/svg";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 const appWindow = new Window("main");
 const { Sider, Content } = AntdLayout;
@@ -34,6 +35,23 @@ const items = [
   },
 ];
 
+const handleOpenWindow = () => {
+  const newWin = new WebviewWindow("console", {
+    url: "console.html",
+    title: "日志",
+    width: 800,
+    height: 600,
+    resizable: true,
+  });
+  newWin.once("tauri://created", () => {
+    console.log("新窗口已创建");
+  });
+
+  newWin.once("tauri://error", (e) => {
+    console.error("新窗口创建失败", e);
+  });
+};
+
 const Layout: FC<{
   children?: ReactNode;
 }> = ({ children }) => {
@@ -41,10 +59,12 @@ const Layout: FC<{
   const [isMaximized, setIsMaximized] = useState(false);
 
   return (
-    <div  className="h-full flex flex-col">
+    <div className="h-full flex flex-col">
       <div className="flex justify-between h-9 bg-white select-none app-drag">
         <div>
-          <Button color="default" variant="link"><TerminalSvgIcon/></Button>
+          <Button color="default" variant="link" onClick={handleOpenWindow}>
+            <TerminalSvgIcon />
+          </Button>
         </div>
         <div className=" text-white app-no-drag">
           <Button onClick={appWindow.minimize} color="default" variant="link">
