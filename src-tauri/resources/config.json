@@ -1,0 +1,72 @@
+{
+  "log": {
+    "level": "info",
+    "timestamp": true
+  },
+  
+  "dns": {
+    "servers": [
+      {
+        "tag": "local-dns",
+        "address": "8.8.8.8",
+        "detour": "direct"
+      }
+    ]
+  },
+  
+  "inbounds": [
+    {
+      "type": "mixed",
+      "tag": "socks-in",
+      "listen": "127.0.0.1",
+      "listen_port": 1080
+    },
+    {
+      "type": "http",
+      "tag": "pac-service",
+      "listen": "127.0.0.1",
+      "listen_port": 8888, 
+      "serve": { 
+        "pac": {
+          "enabled": true,
+          "base_url": "http://127.0.0.1:8888",
+          "path": "/proxy.pac",
+          "proxy": "SOCKS5 127.0.0.1:1080", 
+          "route_rules": true 
+        }
+      }
+    }
+  ],
+  
+  "outbounds": [
+    {
+      "type": "direct",
+      "tag": "direct"
+    },
+    {
+      "type": "shadowsocks",
+      "tag": "SS-Taiwan-03",
+      "server": "lm-allnodes.lma1b2.com",
+      "server_port": 50025,
+      "method": "aes-128-gcm",
+      "password": "111800b4-bea9-44af-b1bf-32fb3d1271c4"
+    }
+  ],
+  
+  "route": {
+    "rules": [
+      {
+        "port": 53,
+        "network": "udp",
+        "outbound": "local-dns"
+      },
+      {
+        "domain": ["google.com", "youtube.com"],
+        "outbound": "SS-Taiwan-03"
+      },
+      {
+        "outbound": "SS-Taiwan-03"
+      }
+    ]
+  }
+}
