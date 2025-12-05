@@ -3,7 +3,7 @@
     "level": "info",
     "timestamp": true
   },
-  
+
   "dns": {
     "servers": [
       {
@@ -13,31 +13,16 @@
       }
     ]
   },
-  
+
   "inbounds": [
     {
       "type": "mixed",
       "tag": "socks-in",
       "listen": "127.0.0.1",
       "listen_port": 1080
-    },
-    {
-      "type": "http",
-      "tag": "pac-service",
-      "listen": "127.0.0.1",
-      "listen_port": 8888, 
-      "serve": { 
-        "pac": {
-          "enabled": true,
-          "base_url": "http://127.0.0.1:8888",
-          "path": "/proxy.pac",
-          "proxy": "SOCKS5 127.0.0.1:1080", 
-          "route_rules": true 
-        }
-      }
     }
   ],
-  
+
   "outbounds": [
     {
       "type": "direct",
@@ -52,13 +37,26 @@
       "password": "111800b4-bea9-44af-b1bf-32fb3d1271c4"
     }
   ],
-  
+
   "route": {
     "rules": [
       {
         "port": 53,
         "network": "udp",
         "outbound": "local-dns"
+      },
+      {
+        "domain": ["chat.deepseek.com"],
+        "outbound": "direct"
+      },
+      {
+        "ip_cidr": [
+          "127.0.0.0/8",
+          "10.0.0.0/8",
+          "172.16.0.0/12",
+          "192.168.0.0/16"
+        ],
+        "outbound": "direct"
       },
       {
         "domain": ["google.com", "youtube.com"],

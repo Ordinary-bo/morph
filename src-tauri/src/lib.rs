@@ -186,7 +186,7 @@ fn start_singbox(
 
             // 4. 存储句柄并开启系统代理
             *process_guard = Some(child);
-            set_windows_proxy_registry(true, "127.0.0.1", port, true)?;
+            set_windows_proxy_registry(true, "127.0.0.1", port, false)?;
 
             Ok("Sing-box 启动成功，系统代理已开启。".to_string())
         }
