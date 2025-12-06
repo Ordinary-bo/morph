@@ -1,29 +1,39 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
-  "identifier": "main",
+  "identifier": "default",
   "description": "Capability for the main window",
   "windows": ["main"],
   "permissions": [
     "core:default",
-    "opener:default",
-    "core:window:default",
-    "core:window:allow-close",
-    "core:window:allow-minimize",
-    "core:window:allow-toggle-maximize",
-    "core:window:allow-start-dragging",
-    "core:webview:allow-create-webview-window",
+    "shell:allow-open",
     "fs:default",
-    "fs:allow-app-read-recursive",
-    "fs:allow-app-write-recursive",
-    "http:default",
+    "fs:allow-appconfig-write-recursive",
     {
-      "identifier": "http:default",
+      "identifier": "shell:allow-execute",
       "allow": [
-        { "url": "http://**" },
-        { "url": "https://**" },
-        { "url": "https://**:**" }
-      ],
-      "deny": [{ "url": "https://private.tauri.app" }]
+        {
+          "name": "binaries/singbox",
+          "cmd": "",     
+          "args": true
+        }
+      ]
+    },
+    "store:default",
+    {
+      "identifier": "store:allow-get",
+      "allow": ["settings.dat", "nodes.dat"]
+    },
+    {
+      "identifier": "store:allow-set",
+      "allow": ["settings.dat", "nodes.dat"]
+    },
+    {
+      "identifier": "store:allow-save",
+      "allow": ["settings.dat", "nodes.dat"]
+    },
+    {
+      "identifier": "store:allow-load", 
+      "allow": ["settings.dat", "nodes.dat"]
     }
   ]
 }

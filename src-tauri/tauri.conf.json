@@ -1,25 +1,36 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "proxy",
+  "productName": "MyProxyApp",
   "version": "0.1.0",
-  "identifier": "proxy",
+  "identifier": "com.myproxy.app",
   "build": {
-    "beforeDevCommand": "pnpm dev",
+    "beforeDevCommand": "pnpm run dev",
+    "beforeBuildCommand": "pnpm run build",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm build",
     "frontendDist": "../dist"
   },
   "app": {
     "windows": [
       {
-        "title": "proxy",
+        "title": "My Proxy App",
         "width": 800,
         "height": 600,
-        "decorations": false
+        "resizable": true,
+        "fullscreen": false,
+        "center": true,
+        "decorations": false,
+        "visible": true
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "capabilities": [
+        "default" 
+      ]
+    },
+    "trayIcon": {
+      "iconPath": "icons/icon.png",
+      "tooltip": "My Proxy App"
     }
   },
   "bundle": {
@@ -32,6 +43,15 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": ["resources"]
+    "externalBin": [
+      "binaries/singbox"
+    ],
+    "resources": [
+      "resources/*"
+    ],
+    "copyright": "",
+    "category": "Utility",
+    "shortDescription": "A simple proxy client using sing-box",
+    "longDescription": ""
   }
 }

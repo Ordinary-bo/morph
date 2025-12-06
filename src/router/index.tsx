@@ -1,6 +1,6 @@
 import { Navigate, useRoutes } from "react-router";
-import Subscriptions from "../pages/Subscriptions";
 import Home from "../pages/Home";
+import Subscriptions from "../pages/Subscriptions";
 
 const AppRoutes = () => {
   return useRoutes([
