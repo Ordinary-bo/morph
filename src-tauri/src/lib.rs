@@ -1,11 +1,20 @@
-use tauri::{AppHandle, Manager}; 
-use crate::singbox::SingBoxState; 
+use tauri::{AppHandle, Manager}; // 确保引入 WebviewWindow, WindowEvent
+use crate::singbox::SingBoxState;
 
 pub mod subscriptions;
 pub mod singbox;
 pub mod config;
 pub mod latency;
 
+// 辅助函数：在关闭 App 时，优雅地停止代理和进程 (保留此函数以供后续调用)
+fn cleanup_on_exit(app: &AppHandle) {
+    println!(">>> App Shutdown: Starting cleanup...");
+    // 1. 获取 SingBoxState
+    let state_guard = app.state::<singbox::SingBoxState>().clone(); 
+    // 2. 调用停止命令 (会杀死进程并清除系统代理)
+    let _ = singbox::stop_singbox(state_guard);
+    println!(">>> App Shutdown: Cleanup complete.");
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
