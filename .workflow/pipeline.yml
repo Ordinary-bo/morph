@@ -1,38 +1,49 @@
 version: '1.0'
-name: nodejs-build-pipeline
-displayName: Node.js构建流程
+name: tauri-linux-build
+displayName: Tauri Linux构建
 
-# 1. 触发规则
 triggers:
   push:
     branches:
-      - new # 当推送到 master 分支时触发
-  pr:
-    branches:
-      - new # 当提交 Pull Request 到 master 时触发
+      - master # 当代码推送到 master 分支时触发
 
-# 2. 定义阶段
 stages:
   - name: build-stage
     displayName: 构建阶段
-    strategy: natural # 串行执行
-    
-    # 3. 具体步骤
+    strategy: natural
     steps:
-      - step: build@nodejs
-        name: build_nodejs
-        displayName: Node.js 环境构建
-        # 定义 Node 版本
-        nodeVersion: 14.15.0
-        # 具体的执行命令
+      - step: custom:1 # 使用自定义镜像步骤
+        name: build-tauri
+        displayName: 环境配置与构建
+        # 使用官方 Rust 镜像作为基础环境
+        image: rust:latest
         commands:
-          - echo "开始安装依赖..."
-          - npm install
-          - echo "开始构建..."
-          - npm run build
-          - echo "构建完成！"
-        # (可选) 如果需要保留构建产物 artifact
+          # 1. 更新 apt 并安装 Tauri 在 Linux 下必须的系统依赖
+          - echo "--- 安装系统依赖 ---"
+          - apt-get update
+          - apt-get install -y libwebkit2gtk-4.0-dev build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+          
+          # 2. 安装 Node.js (这里安装 Node 18，你可以根据需要调整 setup_18.x)
+          - echo "--- 安装 Node.js ---"
+          - curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+          - apt-get install -y nodejs
+          
+          # 3. 检查版本（可选，用于调试）
+          - node -v
+          - cargo -v
+          
+          # 4. 安装前端依赖
+          - echo "--- 安装前端依赖 ---"
+          - npm install # 或者 yarn install / pnpm install
+          
+          # 5. 执行 Tauri 构建
+          - echo "--- 开始构建 Tauri 应用 ---"
+          - npm run tauri build 
+          
+        # 6. 保存构建产物 (Artifacts)
+        # Tauri 默认构建产物在 src-tauri/target/release/bundle/
         artifacts:
-          - name: dist
+          - name: tauri-app-linux
             path:
-              - ./dist
+              - src-tauri/target/release/bundle/deb/   # 保存 deb 包
+              - src-tauri/target/release/bundle/appimage/ # 保存 AppImage
