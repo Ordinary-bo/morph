@@ -114,6 +114,7 @@ pub fn run() {
             singbox::start_singbox,
             singbox::stop_singbox,
             latency::tcp_ping,
+            latency::http_ping,
             settings::get_settings,
             settings::save_settings,
             assets::check_assets,

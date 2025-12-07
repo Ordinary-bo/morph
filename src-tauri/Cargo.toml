@@ -22,7 +22,7 @@ tauri-plugin-http = "2"
 tauri-plugin-shell = "2"
 tauri-plugin-store = "2"
 tauri-plugin-autostart = "2.0.0"
-reqwest = { version = "0.12", features = ["json", "blocking"] }
+reqwest = { version = "0.12", features = ["json", "blocking", "socks", "rustls-tls"] }
 rss = "2.0"
 tokio = { version = "1", features = ["full"] }
 chrono = "0.4"

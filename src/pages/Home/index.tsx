@@ -185,27 +185,41 @@ const HomePage: React.FC = () => {
     });
   };
 
-  // ✅ 连通性测试 (真·URL测速)
+  // ✅ 连通性测试 (调用 Rust 后端的 http_ping)
   const handleUrlConnectivityTest = async () => {
+    // 1. 前置检查：必须先启动代理
     if (!isRunning) {
       return message.warning("请先启动代理，才能测试 Google/YouTube 连通性");
     }
 
     const targetLabel = TEST_URLS.find((u) => u.value === testUrl)?.label;
+
+    // 2. UI 状态更新：加载中
     message.loading({
       content: `正在通过代理访问 ${targetLabel}...`,
       key: "urltest",
     });
     setUrlDelay(null);
 
-    const start = performance.now();
     try {
-      await fetch(testUrl, {
-        method: "HEAD",
-        mode: "no-cors",
-        cache: "no-cache",
+      // 3. 获取当前配置的混合端口 (Mixed Port)
+      // 这样即使用户在设置里把端口改成了 10808，测速依然正常
+      const settings: any = await invoke("get_settings");
+      const currentPort = settings.mixed_port || 2080; // 默认防守
+      const localProxy = `http://127.0.0.1:${currentPort}`;
+
+      // 4. 调用 Rust 后端进行真·HTTP测速
+      // 参数: url (目标), proxyUrl (本地 Sing-box 地址)
+      const ms = await invoke<number>("http_ping", {
+        url: testUrl,
+        proxyUrl: localProxy,
       });
-      const ms = Math.round(performance.now() - start);
+
+      // 5. 处理结果
+      if (ms === -1) {
+        throw new Error("Timeout");
+      }
+
       setUrlDelay(ms);
       message.success({
         content: `${targetLabel} 连接成功: ${ms}ms`,
@@ -213,17 +227,18 @@ const HomePage: React.FC = () => {
       });
     } catch (e) {
       setUrlDelay(-1);
+      console.error("URL Test Failed:", e);
       message.error({ content: `${targetLabel} 访问失败`, key: "urltest" });
     }
   };
 
   const toggleProxy = async () => {
     const currentRunning = homeStore.getSnapshot().isRunning;
-    
+
     // === 情况 1: 用户点击停止 ===
     if (currentRunning) {
       // ✅ 关键修改：先更新 UI 状态，防止监听器误判
-      homeStore.setIsRunning(false); 
+      homeStore.setIsRunning(false);
       setUrlDelay(null); // 重置测速结果
 
       try {
@@ -233,11 +248,11 @@ const HomePage: React.FC = () => {
       } catch (e) {
         console.error(e);
         message.error({ content: `停止失败: ${e}`, key: "process" });
-        
+
         // ❌ 如果后端真的停不掉，再把开关变回去（回滚状态）
-        homeStore.setIsRunning(true); 
+        homeStore.setIsRunning(true);
       }
-    } 
+    }
     // === 情况 2: 用户点击启动 ===
     else {
       if (!selectedNodeId) return message.warning("请先选择一个节点");
