@@ -1,21 +1,35 @@
 import { Navigate, useRoutes } from "react-router";
 import Home from "../pages/Home";
 import Subscriptions from "../pages/Subscriptions";
+import Logs from "../pages/Logs";
+import Layout from "../Layout";
+import SettingsPage from "../pages/Settings";
 
 const AppRoutes = () => {
   return useRoutes([
     {
-      path: "/home",
-      element: <Home />,
+      element: <Layout />,
+      children: [
+        {
+          path: "/home",
+          element: <Home />,
+        },
+        {
+          path: "/subscriptions",
+          element: <Subscriptions />,
+        },
+        { path: "/settings", element: <SettingsPage /> },
+        {
+          path: "/",
+          element: <Navigate to="/home" />,
+        },
+      ],
     },
+
     {
-      path: "/subscriptions",
-      element: <Subscriptions />,
+      path: "/logs",
+      element: <Logs />,
     },
-    {
-      path: "/",
-      element: <Navigate to="/home" />
-    }
   ]);
 };
 

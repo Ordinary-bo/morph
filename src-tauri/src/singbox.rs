@@ -1,14 +1,16 @@
 use std::sync::Mutex;
-use tauri::{AppHandle, Manager, State, Emitter}; // 引入 Emitter 用于发送事件
+use tauri::{AppHandle, Manager, State, Emitter}; 
 use std::fs;
 use std::path::PathBuf;
 use sysproxy::Sysproxy;
-
+use std::process::Command; 
+use std::os::windows::process::CommandExt;
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 
 use crate::subscriptions::{self, Node};
 use crate::config; 
+use crate::settings; 
 
 pub struct SingBoxState {
     pub process: Mutex<Option<CommandChild>>,
@@ -20,11 +22,7 @@ impl SingBoxState {
     }
 }
 
-// ... find_node_by_id, get_config_path 等辅助函数请保持原样 ...
-// 为了篇幅，请确保你保留了 find_node_by_id, get_config_path, enable_system_proxy, disable_system_proxy
-// 这里不再重复粘贴辅助函数，请直接复用上面的或之前的代码
-
-// ----- 必须补全辅助函数，防止编译错误 -----
+// ... find_node_by_id, get_config_path ...
 fn find_node_by_id(app: &AppHandle, node_id: &str) -> Option<Node> {
     match subscriptions::get_subscriptions(app.clone()) {
         Ok(subs) => {
@@ -44,21 +42,41 @@ fn get_config_path(app: &AppHandle) -> PathBuf {
     path
 }
 
-pub fn enable_system_proxy() -> Result<(), String> {
+// 代理设置函数
+pub fn enable_system_proxy(port: u16) -> Result<(), String> {
     let sys = Sysproxy {
-        enable: true, host: "127.0.0.1".into(), port: 2080,
+        enable: true, host: "127.0.0.1".into(), port: port,
         bypass: "localhost;127.*;10.*;172.16.*;172.17.*;172.18.*;172.19.*;172.20.*;172.21.*;172.22.*;172.23.*;172.24.*;172.25.*;172.26.*;172.27.*;172.28.*;172.29.*;172.30.*;172.31.*;192.168.*".into(),
     };
     sys.set_system_proxy().map_err(|e| format!("{:?}", e))
 }
 
-pub fn disable_system_proxy() -> Result<(), String> {
+pub fn disable_system_proxy(port: u16) -> Result<(), String> {
     let sys = Sysproxy {
-        enable: false, host: "127.0.0.1".into(), port: 2080, bypass: "".into(),
+        enable: false, host: "127.0.0.1".into(), port: port, bypass: "".into(),
     };
-    sys.set_system_proxy().map_err(|e| format!("{:?}", e))
+    let _ = sys.set_system_proxy();
+
+    // Windows 暴力清理
+    if cfg!(target_os = "windows") {
+        let registry_path = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings";
+        let _ = Command::new("reg").args(["add", registry_path, "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "0", "/f"]).creation_flags(0x08000000).output();
+        let _ = Command::new("reg").args(["delete", registry_path, "/v", "AutoConfigURL", "/f"]).creation_flags(0x08000000).output();
+        let _ = Command::new("reg").args(["delete", registry_path, "/v", "ProxyServer", "/f"]).creation_flags(0x08000000).output();
+    }
+    Ok(())
 }
-// ----------------------------------------
+
+fn force_kill_singbox() {
+    if cfg!(target_os = "windows") {
+        let _ = Command::new("taskkill")
+            .args(["/F", "/IM", "singbox-x86_64-pc-windows-msvc.exe", "/T"])
+            .creation_flags(0x08000000)
+            .output();
+    }
+}
+
+// --- Commands ---
 
 #[tauri::command]
 pub fn start_singbox(
@@ -68,22 +86,42 @@ pub fn start_singbox(
     mode: String 
 ) -> Result<String, String> {
     let mut process_guard = state.process.lock().unwrap();
-    if process_guard.is_some() { return Err("Sing-box 已经在运行中".to_string()); }
 
+    // ✅ 修复点 1：不要返回 Err，而是直接清理旧状态
+    // 如果之前有残留的句柄，不管它是活是死，先丢弃并尝试杀掉
+    if let Some(child) = process_guard.take() {
+        let _ = child.kill(); 
+    }
+
+    // 1. 获取配置
+    let settings = settings::get_settings(app.clone());
+    let port = settings.mixed_port;
+    let whitelist = settings.whitelist;
+
+    // 2. 强力清理环境
+    let _ = disable_system_proxy(port);
+    let _ = disable_system_proxy(2080);
+    force_kill_singbox();
+    std::thread::sleep(std::time::Duration::from_millis(200));
+
+    // 3. 生成配置
     let node = find_node_by_id(&app, &node_id).ok_or("未找到该节点")?;
-    let singbox_config = config::generate_singbox_config(&node, &mode);
+    let singbox_config = config::generate_singbox_config(&node, &mode, port, &whitelist);
     let config_json = serde_json::to_string_pretty(&singbox_config).map_err(|e| e.to_string())?;
     
+    // ✅ 调试关键：打印生成的配置到终端，方便看为什么启动失败
+    println!(">>> 生成的配置内容:\n{}", config_json);
+
     let config_path = get_config_path(&app);
     fs::write(&config_path, &config_json).map_err(|e| e.to_string())?;
     
     let config_path_str = config_path.to_string_lossy().to_string();
-    println!(">>> 配置文件: {}", config_path_str);
+    let config_dir = config_path.parent().unwrap();
 
+    // 4. 启动 Sidecar
     let sidecar_command = app.shell().sidecar("singbox").map_err(|e| e.to_string())?;
-
     let (mut rx, child) = sidecar_command
-        .env("ENABLE_DEPRECATED_SPECIAL_OUTBOUNDS", "true") // 兼容旧版配置
+        .current_dir(config_dir)
         .args(["run", "-c", &config_path_str]) 
         .spawn()
         .map_err(|e| format!("启动失败: {}", e))?;
@@ -91,48 +129,58 @@ pub fn start_singbox(
     println!(">>> 进程启动 PID: {}", child.pid());
     *process_guard = Some(child);
 
-    // 设置代理
+    // 5. 设置代理
     if mode != "Direct" {
-        let _ = enable_system_proxy();
+        if let Err(e) = enable_system_proxy(port) {
+             println!(">>> 警告：系统代理设置失败: {}", e);
+             force_kill_singbox();
+             *process_guard = None;
+             let _ = disable_system_proxy(port);
+             return Err(format!("系统代理失败: {}", e));
+        }
     }
 
-    // ✅ 核心修改：开启线程监听，如果进程退出，通知前端
+    // 6. 日志监听
     let app_handle = app.clone();
     tauri::async_runtime::spawn(async move {
         while let Some(event) = rx.recv().await {
             match event {
-                CommandEvent::Stdout(line) => println!("[SingBox] {}", String::from_utf8_lossy(&line)),
-                CommandEvent::Stderr(line) => println!("[SingBox ERR] {}", String::from_utf8_lossy(&line)),
-                // 监听进程终止事件 (例如 Error 或 Terminated)
-                CommandEvent::Error(e) => {
-                     println!(">>> 进程发生错误: {}", e);
-                     let _ = app_handle.emit("singbox-stopped", format!("Core Error: {}", e));
+                CommandEvent::Stdout(line) => {
+                    let log = String::from_utf8_lossy(&line).to_string();
+                    let _ = app_handle.emit("app-log", log); 
                 }
-                CommandEvent::Terminated(payload) => {
-                     println!(">>> 进程已退出 code: {:?}", payload.code);
-                     let _ = app_handle.emit("singbox-stopped", "Core Terminated");
+                CommandEvent::Stderr(line) => {
+                    let log = String::from_utf8_lossy(&line).to_string();
+                    let _ = app_handle.emit("app-log", log);
+                }
+                CommandEvent::Error(e) => {
+                     let msg = format!("Process Error: {}", e);
+                     let _ = app_handle.emit("singbox-stopped", &msg);
+                     let _ = app_handle.emit("app-log", msg);
+                }
+                CommandEvent::Terminated(_) => {
+                     let _ = app_handle.emit("singbox-stopped", "Terminated");
+                     let _ = app_handle.emit("app-log", "Process Terminated");
                 }
                 _ => {}
             }
         }
-        // 循环结束也意味着进程管道断开了
-        println!(">>> 日志管道关闭");
     });
     
     Ok("启动成功".to_string())
 }
 
 #[tauri::command]
-pub fn stop_singbox(state: State<SingBoxState>) -> Result<String, String> {
+pub fn stop_singbox(app: AppHandle, state: State<SingBoxState>) -> Result<String, String> {
     let mut process_guard = state.process.lock().unwrap();
-    let _ = disable_system_proxy();
+    
+    let settings = settings::get_settings(app);
+    let _ = disable_system_proxy(settings.mixed_port);
 
     if let Some(child) = process_guard.take() {
-        match child.kill() {
-            Ok(_) => Ok("已停止".to_string()),
-            Err(e) => Err(format!("停止失败: {}", e)),
-        }
-    } else {
-        Ok("未运行".to_string())
+        let _ = child.kill();
     }
+    force_kill_singbox();
+
+    Ok("已停止".to_string())
 }

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use crate::subscriptions::Node;
 
 // ==========================================================
-// 1. Sing-box 配置文件的数据结构定义
+// Sing-box Config (支持 domain_suffix)
 // ==========================================================
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -17,7 +17,6 @@ pub struct SingBoxConfig {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LogConfig {
     pub level: String,
-    // 留空以输出到控制台，避免文件权限问题
     pub output: String,
 }
 
@@ -40,19 +39,16 @@ pub struct Outbound {
     pub server: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub server_port: Option<u16>,
-    
     #[serde(skip_serializing_if = "Option::is_none")]
     pub uuid: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub security: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub alter_id: Option<u16>,
-
     #[serde(skip_serializing_if = "Option::is_none")]
     pub password: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub method: Option<String>,
-
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tls: Option<TlsConfig>,
 }
@@ -76,19 +72,29 @@ pub struct RouteConfig {
 pub struct RouteRule {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub protocol: Option<Vec<String>>, 
+    
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub domain: Option<Vec<String>>,
+    pub domain: Option<Vec<String>>, // 精确匹配
+    
+    // ✅ 新增：域名后缀匹配 (用于白名单)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub domain_suffix: Option<Vec<String>>, 
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ip_cidr: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub port: Option<Vec<u16>>,
-    pub outbound: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outbound: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub action: Option<String>, 
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DnsConfig {
     pub servers: Vec<DnsServer>,
     pub rules: Vec<DnsRule>,
+    pub strategy: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -102,19 +108,24 @@ pub struct DnsServer {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DnsRule {
-    // ✅ 新增：支持按域名匹配 DNS 规则
     #[serde(skip_serializing_if = "Option::is_none")]
     pub domain: Option<Vec<String>>, 
+    
+    // ✅ 新增：DNS 规则也需要后缀匹配
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub domain_suffix: Option<Vec<String>>, 
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub outbound: Option<Vec<String>>,
-    pub server: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub server: Option<String>,
 }
 
 // ==========================================================
-// 2. 核心逻辑：生成配置
+// 生成配置逻辑
 // ==========================================================
 
-pub fn generate_singbox_config(node: &Node, mode: &str) -> SingBoxConfig {
+pub fn generate_singbox_config(node: &Node, mode: &str, port: u16, whitelist: &[String]) -> SingBoxConfig {
     let proxy_outbound = convert_node_to_outbound(node);
 
     let direct_outbound = Outbound {
@@ -122,103 +133,109 @@ pub fn generate_singbox_config(node: &Node, mode: &str) -> SingBoxConfig {
         server: None, server_port: None, uuid: None, security: None, alter_id: None, password: None, method: None, tls: None,
     };
     
-    let block_outbound = Outbound {
-        outbound_type: "block".to_string(), tag: "block".to_string(),
-        server: None, server_port: None, uuid: None, security: None, alter_id: None, password: None, method: None, tls: None,
-    };
-
-    let dns_outbound = Outbound {
-        outbound_type: "dns".to_string(), tag: "dns-out".to_string(),
-        server: None, server_port: None, uuid: None, security: None, alter_id: None, password: None, method: None, tls: None,
-    };
-
     let mixed_inbound = Inbound {
         inbound_type: "mixed".to_string(),
         tag: "mixed-in".to_string(),
         listen: "127.0.0.1".to_string(),
-        listen_port: 2080,
+        listen_port: port,
     };
 
     // --- 路由规则 ---
     let mut rules = Vec::new();
 
-    // 0. DNS 流量
+    // 1. DNS 拦截
     rules.push(RouteRule {
         protocol: Some(vec!["dns".to_string()]),
-        domain: None, ip_cidr: None, port: None,
-        outbound: "dns-out".to_string(),
+        domain: None, domain_suffix: None, ip_cidr: None, port: None,
+        outbound: None,
+        action: Some("hijack-dns".to_string()),
     });
 
-    // 1. 关键修复：代理节点本身的域名，必须走直连！
-    // 否则会出现 DNS Loop (用代理去查代理的IP)
+    // 2. 节点域名直连 (精确匹配即可)
     rules.push(RouteRule {
         protocol: None,
-        domain: Some(vec![node.address.clone()]), // 匹配节点域名
+        domain: Some(vec![node.address.clone()]), 
+        domain_suffix: None,
         ip_cidr: None, port: None,
-        outbound: "direct".to_string(),
+        outbound: Some("direct".to_string()), action: None,
     });
 
-    // 2. 规则模式
+    // 3. 规则模式处理
     if mode == "Rule" {
+        // ✅ 核心修改：白名单使用 domain_suffix (后缀匹配)
+        if !whitelist.is_empty() {
+            rules.push(RouteRule {
+                protocol: None,
+                domain: None,
+                domain_suffix: Some(whitelist.to_vec()), // 👈 这里改成了 suffix
+                ip_cidr: None, port: None,
+                outbound: Some("direct".to_string()), 
+                action: None,
+            });
+        }
+
+        // 默认国内直连
         rules.push(RouteRule {
             protocol: None,
-            domain: Some(vec!["domain_suffix:cn".to_string(), "domain_keyword:baidu".to_string()]), 
-            ip_cidr: None, port: None,
-            outbound: "direct".to_string(),
+            domain: None,
+            domain_suffix: Some(vec!["cn".to_string()]), // .cn 后缀
+            // 关键词匹配依然放在 domain 字段里也可以，或者用 domain_keyword 字段(需新增)
+            // 这里简单处理，用 suffix 匹配 .cn，其他用 domain_keyword 需扩充 struct
+            // 为了简单，我们暂时只演示 suffix
+            ip_cidr: None, 
+            port: None,
+            outbound: Some("direct".to_string()),
+            action: None,
         });
     }
 
-    // 3. 兜底
+    // 4. 兜底规则
     let final_tag = match mode {
         "Direct" => "direct",
         _ => "proxy",
     };
     rules.push(RouteRule {
-        protocol: None, domain: None, ip_cidr: None, port: None,
-        outbound: final_tag.to_string(),
+        protocol: None, domain: None, domain_suffix: None, ip_cidr: None, port: None,
+        outbound: Some(final_tag.to_string()),
+        action: None,
     });
 
     // --- DNS 配置 ---
+    let mut dns_rules = vec![
+        // 节点本身
+        DnsRule { 
+            domain: Some(vec![node.address.clone()]), 
+            domain_suffix: None,
+            outbound: None, server: Some("local".to_string()) 
+        },
+    ];
+
+    if mode == "Rule" && !whitelist.is_empty() {
+        // ✅ 核心修改：白名单 DNS 也使用后缀匹配
+        dns_rules.push(DnsRule {
+            domain: None,
+            domain_suffix: Some(whitelist.to_vec()), // 👈 这里也改成了 suffix
+            outbound: None,
+            server: Some("local".to_string()),
+        });
+    }
+
+    // 默认走 Google
+    dns_rules.push(DnsRule { domain: None, domain_suffix: None, outbound: None, server: Some("google".to_string()) });
+
     let dns_config = DnsConfig {
+        strategy: "ipv4_only".to_string(),
         servers: vec![
-            // 远程 DNS (走代理)
-            DnsServer { 
-                tag: "google".to_string(), 
-                address: "8.8.8.8".to_string(), 
-                address_resolver: None, 
-                detour: Some("proxy".to_string()) 
-            },
-            // 本地 DNS (走直连)
-            DnsServer { 
-                tag: "local".to_string(), 
-                address: "223.5.5.5".to_string(), 
-                address_resolver: None, 
-                detour: Some("direct".to_string()) 
-            },
+            DnsServer { tag: "google".to_string(), address: "8.8.8.8".to_string(), address_resolver: None, detour: Some("proxy".to_string()) },
+            DnsServer { tag: "local".to_string(), address: "223.5.5.5".to_string(), address_resolver: None, detour: Some("direct".to_string()) },
         ],
-        rules: vec![
-            // 关键规则 1: 代理节点的域名，必须用 local DNS 解析
-            DnsRule {
-                domain: Some(vec![node.address.clone()]),
-                outbound: None,
-                server: "local".to_string(),
-            },
-            // 默认规则: 其他所有域名用 google DNS
-            DnsRule { 
-                domain: None,
-                outbound: None, 
-                server: "google".to_string() 
-            } 
-        ],
+        rules: dns_rules,
     };
 
     SingBoxConfig {
-        log: LogConfig {
-            level: "info".to_string(),
-            output: "".to_string(),
-        },
+        log: LogConfig { level: "info".to_string(), output: "".to_string() },
         inbounds: vec![mixed_inbound],
-        outbounds: vec![proxy_outbound, direct_outbound, block_outbound, dns_outbound],
+        outbounds: vec![proxy_outbound, direct_outbound], 
         route: RouteConfig {
             rules,
             auto_detect_interface: true,
@@ -227,6 +244,8 @@ pub fn generate_singbox_config(node: &Node, mode: &str) -> SingBoxConfig {
     }
 }
 
+// convert_node_to_outbound 保持不变 (为了篇幅省略，请保留原有的)
+// ... (保留你之前的 convert_node_to_outbound 代码) ...
 fn convert_node_to_outbound(node: &Node) -> Outbound {
     let mut out = Outbound {
         outbound_type: node.protocol.clone(),
@@ -245,7 +264,6 @@ fn convert_node_to_outbound(node: &Node) -> Outbound {
         out.tls = Some(TlsConfig {
             enabled: true,
             server_name: node.sni.clone(),
-            // 强制跳过证书验证，防止节点证书无效
             insecure: Some(true), 
         });
     } else if node.protocol == "ss" {
