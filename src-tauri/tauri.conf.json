@@ -24,9 +24,7 @@
     ],
     "security": {
       "csp": null,
-      "capabilities": [
-        "default" 
-      ]
+      "capabilities": ["default"]
     }
   },
   "bundle": {
@@ -39,15 +37,16 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": [
-      "binaries/singbox"
-    ],
-    "resources": [
-      "resources/*"
-    ],
+    "externalBin": ["binaries/singbox"],
+    "resources": ["resources/*"],
     "copyright": "",
     "category": "Utility",
     "shortDescription": "A simple proxy client using sing-box",
-    "longDescription": ""
+    "longDescription": "",
+    "windows": {
+      "wix": {
+        "language": ["zh-CN"]
+      }
+    }
   }
 }
