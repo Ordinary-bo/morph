@@ -1,0 +1,38 @@
+version: '1.0'
+name: nodejs-build-pipeline
+displayName: Node.js构建流程
+
+# 1. 触发规则
+triggers:
+  push:
+    branches:
+      - new # 当推送到 master 分支时触发
+  pr:
+    branches:
+      - new # 当提交 Pull Request 到 master 时触发
+
+# 2. 定义阶段
+stages:
+  - name: build-stage
+    displayName: 构建阶段
+    strategy: natural # 串行执行
+    
+    # 3. 具体步骤
+    steps:
+      - step: build@nodejs
+        name: build_nodejs
+        displayName: Node.js 环境构建
+        # 定义 Node 版本
+        nodeVersion: 14.15.0
+        # 具体的执行命令
+        commands:
+          - echo "开始安装依赖..."
+          - npm install
+          - echo "开始构建..."
+          - npm run build
+          - echo "构建完成！"
+        # (可选) 如果需要保留构建产物 artifact
+        artifacts:
+          - name: dist
+            path:
+              - ./dist
