@@ -6,12 +6,14 @@ interface HomeState {
   isRunning: boolean;
   latencies: Record<string, number>;
   sortType: SortType;
+  connectedNodeId: string | null;
 }
 
 let state: HomeState = {
   isRunning: false,
   latencies: {},
   sortType: 'default',
+  connectedNodeId: null,
 };
 
 const listeners = new Set<() => void>();
@@ -59,8 +61,13 @@ export const homeStore = {
     emitChange();
   },
 
+  setConnectedNodeId(id: string | null) {
+     if (state.connectedNodeId === id) return;
+    state = { ...state, connectedNodeId: id };
+    emitChange();
+  },
   reset() {
-    state = { isRunning: false, latencies: {}, sortType: 'default' };
+    state = { isRunning: false, latencies: {}, sortType: 'default',connectedNodeId: null };
     emitChange();
   }
 };

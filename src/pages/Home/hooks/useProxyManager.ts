@@ -6,11 +6,10 @@ import { homeStore, useHomeStore } from "../../../store/homeStore";
 
 export function useProxyManager() {
   const { message } = App.useApp();
-  const { isRunning } = useHomeStore();
+  const { isRunning,connectedNodeId } = useHomeStore();
   
   // 状态分离
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [connectedNodeId, setConnectedNodeId] = useState<string | null>(null);
   const [mode, setMode] = useState<string>("Rule");
   const [isSwitching, setIsSwitching] = useState(false);
 
@@ -22,7 +21,7 @@ export function useProxyManager() {
         console.warn("Singbox backend stopped:", event.payload);
         if (homeStore.getSnapshot().isRunning) {
           homeStore.setIsRunning(false);
-          setConnectedNodeId(null);
+          homeStore.setConnectedNodeId(null);
           message.error("核心进程意外退出，请检查日志");
         }
       });
@@ -36,7 +35,7 @@ export function useProxyManager() {
     if (isRunning) {
       // Stop
       homeStore.setIsRunning(false);
-      setConnectedNodeId(null);
+      homeStore.setConnectedNodeId(null);
       try {
         message.loading({ content: "正在停止...", key: "process" });
         await invoke("stop_singbox");
@@ -52,12 +51,12 @@ export function useProxyManager() {
         message.loading({ content: "正在启动核心...", key: "process" });
         await invoke("start_singbox", { nodeId: selectedNodeId, mode });
         homeStore.setIsRunning(true);
-        setConnectedNodeId(selectedNodeId);
+        homeStore.setConnectedNodeId(selectedNodeId);
         message.success({ content: "代理已启动", key: "process" });
       } catch (e) {
         message.error({ content: `启动失败: ${e}`, key: "process" });
         homeStore.setIsRunning(false);
-        setConnectedNodeId(null);
+        homeStore.setConnectedNodeId(null);
       }
     }
   };
@@ -69,7 +68,7 @@ export function useProxyManager() {
     try {
       await invoke("stop_singbox");
       await invoke("start_singbox", { nodeId: selectedNodeId, mode });
-      setConnectedNodeId(selectedNodeId);
+      homeStore.setConnectedNodeId(selectedNodeId);
       message.success("节点切换成功");
     } catch (e) {
       message.error(`切换失败: ${e}`);
@@ -90,14 +89,13 @@ export function useProxyManager() {
     } catch (e) {
       message.error({ content: `切换失败: ${e}`, key: "mode" });
       homeStore.setIsRunning(false);
-      setConnectedNodeId(null);
+      homeStore.setConnectedNodeId(null);
     }
   };
 
   return {
     selectedNodeId,
     setSelectedNodeId,
-    connectedNodeId,
     mode,
     isSwitching,
     toggleProxy,
