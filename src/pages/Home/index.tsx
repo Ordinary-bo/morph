@@ -14,15 +14,13 @@ import ControlToolbar from "./ControlToolbar";
 
 const HomePage: React.FC = () => {
   // 1. 全局 Store
-  const { isRunning, latencies } = useHomeStore();
-
+  const { isRunning, latencies, connectedNodeId } = useHomeStore();
   // 2. 自定义 Hooks
   const { sortedNodes, nodes } = useNodeData(); // 节点数据
   
   const {
     selectedNodeId,
     setSelectedNodeId,
-    connectedNodeId,
     mode,
     isSwitching,
     toggleProxy,
