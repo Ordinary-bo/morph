@@ -63,7 +63,7 @@ export const homeStore = {
 
   setConnectedNodeId(id: string | null) {
      if (state.connectedNodeId === id) return;
-    state = { ...state, connectedNodeId: id };
+    state = { ...state, connectedNodeId: id,isRunning: id !== null };
     emitChange();
   },
   reset() {

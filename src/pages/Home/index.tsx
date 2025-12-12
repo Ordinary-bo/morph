@@ -42,6 +42,8 @@ const HomePage: React.FC = () => {
   // 3. 副作用处理
   // 初始化默认选中第一个节点
   useEffect(() => {
+    if (connectedNodeId !== null && !selectedNodeId)
+      return setSelectedNodeId(connectedNodeId);
     if (!selectedNodeId && nodes.length > 0) {
       setSelectedNodeId(nodes[0].id);
     }
@@ -104,8 +106,7 @@ const HomePage: React.FC = () => {
               selectedNodeId={selectedNodeId}
               latencies={latencies}
               onSelect={setSelectedNodeId}
-              // 如果你的 NodeList 支持 activeId，可以传入 connectedNodeId
-              // activeNodeId={connectedNodeId}
+              activeNodeId={connectedNodeId}
             />
           )}
         </div>

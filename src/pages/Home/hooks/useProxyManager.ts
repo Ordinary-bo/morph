@@ -22,7 +22,7 @@ export function useProxyManager() {
         if (homeStore.getSnapshot().isRunning) {
           homeStore.setIsRunning(false);
           homeStore.setConnectedNodeId(null);
-          message.error("核心进程意外退出，请检查日志");
+          message.warning("核心进程退出，请检查日志");
         }
       });
     };
