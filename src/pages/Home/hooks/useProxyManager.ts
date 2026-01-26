@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { App } from "antd";
@@ -8,17 +8,19 @@ export function useProxyManager() {
   const { message } = App.useApp();
   const { isRunning,connectedNodeId } = useHomeStore();
   
-  // 状态分离
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [mode, setMode] = useState<string>("Rule");
   const [isSwitching, setIsSwitching] = useState(false);
+  const isIntentionalStopRef = useRef(false);
 
   // 监听后端意外退出
   useEffect(() => {
     let unlisten: () => void;
     const setupListener = async () => {
       unlisten = await listen("singbox-stopped", (event) => {
+        if (isIntentionalStopRef.current) return; // 如果是主动停止，则不处理
         console.warn("Singbox backend stopped:", event.payload);
+        isIntentionalStopRef.current = false;
         if (homeStore.getSnapshot().isRunning) {
           homeStore.setIsRunning(false);
           homeStore.setConnectedNodeId(null);
@@ -66,10 +68,12 @@ export function useProxyManager() {
     if (!selectedNodeId || selectedNodeId === connectedNodeId) return;
     setIsSwitching(true);
     try {
+      isIntentionalStopRef.current = true;
       await invoke("stop_singbox");
       await invoke("start_singbox", { nodeId: selectedNodeId, mode });
       homeStore.setConnectedNodeId(selectedNodeId);
       message.success("节点切换成功");
+      isIntentionalStopRef.current = false;
     } catch (e) {
       message.error(`切换失败: ${e}`);
     } finally {
@@ -82,10 +86,12 @@ export function useProxyManager() {
     setMode(value);
     if (!isRunning || !connectedNodeId) return;
     try {
+      isIntentionalStopRef.current = true;
       message.loading({ content: "正在切换模式...", key: "mode" });
       await invoke("stop_singbox");
       await invoke("start_singbox", { nodeId: connectedNodeId, mode: value });
       message.success({ content: "模式切换成功", key: "mode" });
+      isIntentionalStopRef.current = false;
     } catch (e) {
       message.error({ content: `切换失败: ${e}`, key: "mode" });
       homeStore.setIsRunning(false);
