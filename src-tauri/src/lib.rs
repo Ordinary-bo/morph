@@ -24,7 +24,20 @@ fn cleanup_on_exit(app: &AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let mut builder = tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+
+    #[cfg(desktop)]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }));
+    }
+
+    let builder = builder
         .setup(|app| {
                 let _ = singbox::disable_system_proxy(2080);
                 println!(">>> Startup: Ensured system proxy is disabled.");
@@ -141,16 +154,6 @@ pub fn run() {
                 Some(vec![]),
             ))
             .plugin(tauri_plugin_shell::init());
-
-    #[cfg(desktop)]
-    {
-        builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
-            let _ = app
-                .get_webview_window("main")
-                .expect("no main window")
-                .set_focus();
-        }));
-    }
 
     builder
         .invoke_handler(tauri::generate_handler![
