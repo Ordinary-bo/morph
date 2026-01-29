@@ -58,7 +58,9 @@ pub fn disable_system_proxy(port: u16) -> Result<(), String> {
     let _ = sys.set_system_proxy();
 
     // Windows 暴力清理
-    if cfg!(target_os = "windows") {
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
         let registry_path = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings";
         let _ = Command::new("reg").args(["add", registry_path, "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "0", "/f"]).creation_flags(0x08000000).output();
         let _ = Command::new("reg").args(["delete", registry_path, "/v", "AutoConfigURL", "/f"]).creation_flags(0x08000000).output();
@@ -68,7 +70,9 @@ pub fn disable_system_proxy(port: u16) -> Result<(), String> {
 }
 
 fn force_kill_singbox() {
-    if cfg!(target_os = "windows") {
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
         let _ = Command::new("taskkill")
             .args(["/F", "/IM", "singbox-x86_64-pc-windows-msvc.exe", "/T"])
             .creation_flags(0x08000000)
