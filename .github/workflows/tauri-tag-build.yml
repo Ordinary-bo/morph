@@ -14,13 +14,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Windows builds
+          # Windows builds - x64 only (singbox binary available)
           - platform: 'windows-latest'
             args: '--target x86_64-pc-windows-msvc'
-          - platform: 'windows-latest'
-            args: '--target i686-pc-windows-msvc'
-          - platform: 'windows-latest'
-            args: '--target aarch64-pc-windows-msvc'
           # macOS builds
           - platform: 'macos-latest'
             args: '--target aarch64-apple-darwin'
