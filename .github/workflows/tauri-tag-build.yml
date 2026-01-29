@@ -1,69 +1,73 @@
-name: Tauri Tag Build
+name: 'Publish Morph'
 
 on:
+  workflow_dispatch:
   push:
     tags:
-      - "v*"
-
-permissions:
-  contents: write
+      - 'v*'
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
+  publish-tauri:
+    permissions:
+      contents: write
     strategy:
+      fail-fast: false
       matrix:
-        target: [x86_64-pc-windows-msvc, i686-pc-windows-msvc, aarch64-pc-windows-msvc]
+        include:
+          - platform: 'windows-latest'
+            args: '--target x86_64-pc-windows-msvc'
+          - platform: 'windows-latest'
+            args: '--target i686-pc-windows-msvc'
+          - platform: 'windows-latest'
+            args: '--target aarch64-pc-windows-msvc'
+
+    runs-on: ${{ matrix.platform }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: lts/*
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
 
-      - name: Setup Rust
+      - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Add Rust target
-        run: rustup target add ${{ matrix.target }}
-
-      - name: Cache pnpm store
-        uses: actions/cache@v4
         with:
-          path: ~/.pnpm-store
-          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            pnpm-${{ runner.os }}-
+          targets: x86_64-pc-windows-msvc,i686-pc-windows-msvc,aarch64-pc-windows-msvc
 
-      - name: Install frontend deps
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build & Release (x64 only)
-        if: matrix.target == 'x86_64-pc-windows-msvc'
-        uses: tauri-apps/tauri-action@v0
+      - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "Release ${{ github.ref_name }}"
-          releaseBody: "Automated build for ${{ github.ref_name }}"
-          releaseDraft: false
+          tagName: v__VERSION__
+          releaseName: 'Morph v__VERSION__'
+          releaseBody: |
+            ## Morph v__VERSION__
+
+            ### 下载说明
+            - **Windows x64**: 适用于大多数 Windows 电脑
+            - **Windows x86**: 适用于 32 位 Windows 系统
+            - **Windows ARM64**: 适用于 ARM 架构的 Windows 设备
+
+            ### 安装包类型
+            - `.msi` - Windows 安装程序
+            - `.exe` - NSIS 安装程序（推荐）
+
+            ---
+            See the assets below to download and install.
+          releaseDraft: true
           prerelease: false
-          args: "--target ${{ matrix.target }}"
-
-      - name: Build (other targets)
-        if: matrix.target != 'x86_64-pc-windows-msvc'
-        run: pnpm tauri build --target ${{ matrix.target }}
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: tauri-build-${{ github.ref_name }}-${{ matrix.target }}
-          path: src-tauri/target/${{ matrix.target }}/release/bundle
+          args: ${{ matrix.args }}
