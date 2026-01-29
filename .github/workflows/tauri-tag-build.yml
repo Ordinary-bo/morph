@@ -6,6 +6,9 @@ on:
     tags:
       - 'v*'
 
+env:
+  SINGBOX_VERSION: '1.10.6'
+
 jobs:
   publish-tauri:
     permissions:
@@ -14,21 +17,53 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Windows builds - x64 only (singbox binary available)
+          # Windows builds
           - platform: 'windows-latest'
             args: '--target x86_64-pc-windows-msvc'
+            singbox_arch: 'windows-amd64'
+            singbox_name: 'singbox-x86_64-pc-windows-msvc.exe'
+          - platform: 'windows-latest'
+            args: '--target i686-pc-windows-msvc'
+            singbox_arch: 'windows-386'
+            singbox_name: 'singbox-i686-pc-windows-msvc.exe'
+          - platform: 'windows-latest'
+            args: '--target aarch64-pc-windows-msvc'
+            singbox_arch: 'windows-arm64'
+            singbox_name: 'singbox-aarch64-pc-windows-msvc.exe'
           # macOS builds
           - platform: 'macos-latest'
             args: '--target aarch64-apple-darwin'
+            singbox_arch: 'darwin-arm64'
+            singbox_name: 'singbox-aarch64-apple-darwin'
           - platform: 'macos-latest'
             args: '--target x86_64-apple-darwin'
+            singbox_arch: 'darwin-amd64'
+            singbox_name: 'singbox-x86_64-apple-darwin'
           # Linux builds
           - platform: 'ubuntu-22.04'
             args: ''
+            singbox_arch: 'linux-amd64'
+            singbox_name: 'singbox-x86_64-unknown-linux-gnu'
 
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download sing-box binary
+        run: |
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            curl -L "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SINGBOX_VERSION }}/sing-box-${{ env.SINGBOX_VERSION }}-${{ matrix.singbox_arch }}.zip" -o singbox.zip
+            unzip singbox.zip
+            mkdir -p src-tauri/binaries
+            mv sing-box-*/sing-box.exe src-tauri/binaries/${{ matrix.singbox_name }}
+          else
+            curl -L "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SINGBOX_VERSION }}/sing-box-${{ env.SINGBOX_VERSION }}-${{ matrix.singbox_arch }}.tar.gz" -o singbox.tar.gz
+            tar -xzf singbox.tar.gz
+            mkdir -p src-tauri/binaries
+            mv sing-box-*/sing-box src-tauri/binaries/${{ matrix.singbox_name }}
+            chmod +x src-tauri/binaries/${{ matrix.singbox_name }}
+          fi
+        shell: bash
 
       - name: Install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-22.04'
@@ -78,6 +113,17 @@ jobs:
             **安装包类型：**
             - `.msi` - Windows Installer（需要管理员权限）
             - `.exe` - NSIS Installer（推荐，无需管理员权限）
+
+            #### macOS
+            - **Apple Silicon** (ARM64) - 适用于 M1/M2/M3 及更新的 Mac
+            - **Intel** (x86_64) - 适用于 Intel 芯片的 Mac
+
+            #### Linux
+            - AppImage - 通用 Linux 发行版
+            - deb - Ubuntu/Debian 系
+            - rpm - CentOS/Fedora 系
+
+            **Powered by sing-box v${{ env.SINGBOX_VERSION }}**
 
             #### macOS
             - **Apple Silicon** (ARM64) - 适用于 M1/M2/M3 及更新的 Mac
