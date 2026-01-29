@@ -14,16 +14,31 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Windows builds
           - platform: 'windows-latest'
             args: '--target x86_64-pc-windows-msvc'
           - platform: 'windows-latest'
             args: '--target i686-pc-windows-msvc'
           - platform: 'windows-latest'
             args: '--target aarch64-pc-windows-msvc'
+          # macOS builds
+          - platform: 'macos-latest'
+            args: '--target aarch64-apple-darwin'
+          - platform: 'macos-latest'
+            args: '--target x86_64-apple-darwin'
+          # Linux builds
+          - platform: 'ubuntu-22.04'
+            args: ''
 
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install dependencies (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -38,7 +53,7 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: x86_64-pc-windows-msvc,i686-pc-windows-msvc,aarch64-pc-windows-msvc
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -57,14 +72,30 @@ jobs:
           releaseBody: |
             ## Morph v__VERSION__
 
-            ### 下载说明
-            - **Windows x64**: 适用于大多数 Windows 电脑
-            - **Windows x86**: 适用于 32 位 Windows 系统
-            - **Windows ARM64**: 适用于 ARM 架构的 Windows 设备
+            ### 📥 下载说明
 
-            ### 安装包类型
-            - `.msi` - Windows 安装程序
-            - `.exe` - NSIS 安装程序（推荐）
+            #### Windows
+            - **x86_64** (64-bit) - 适用于大多数现代 Windows 电脑
+            - **i686** (32-bit) - 适用于 32 位 Windows 系统
+            - **ARM64** - 适用于 ARM 架构的 Windows 设备
+            
+            **安装包类型：**
+            - `.msi` - Windows Installer（需要管理员权限）
+            - `.exe` - NSIS Installer（推荐，无需管理员权限）
+
+            #### macOS
+            - **Apple Silicon** (ARM64) - 适用于 M1/M2/M3 及更新的 Mac
+            - **Intel** (x86_64) - 适用于 Intel 芯片的 Mac
+
+            #### Linux
+            - AppImage - 通用 Linux 发行版
+            - deb - Ubuntu/Debian 系
+            - rpm - CentOS/Fedora 系
+
+            ### 安装步骤
+            1. 下载对应平台的安装包
+            2. 运行安装程序
+            3. 按照提示完成安装
 
             ---
             See the assets below to download and install.
