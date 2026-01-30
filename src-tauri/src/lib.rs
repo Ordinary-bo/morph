@@ -169,7 +169,7 @@ pub fn run() {
             settings::get_settings,
             settings::save_settings,
             assets::check_assets,
-            assets::download_assets
+            assets::download_assets,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
