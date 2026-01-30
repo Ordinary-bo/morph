@@ -100,53 +100,23 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Read Release Notes
+        id: release_notes
+        run: |
+          content=$(cat .github/RELEASE_NOTES_TEMPLATE.md)
+          content="${content//__SINGBOX_VERSION__/${{ env.SINGBOX_VERSION }}}"
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo "$content" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        shell: bash
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: v__VERSION__
           releaseName: 'Morph v__VERSION__'
-          releaseBody: |
-            ## Morph v__VERSION__
-
-            ### 📥 下载说明
-
-            #### Windows
-            - **x86_64** (64-bit) - 适用于大多数现代 Windows 电脑
-            - **i686** (32-bit) - 适用于 32 位 Windows 系统
-            - **ARM64** - 适用于 ARM 架构的 Windows 设备
-            
-            **安装包类型：**
-            - `.msi` - Windows Installer（需要管理员权限）
-            - `.exe` - NSIS Installer（推荐，无需管理员权限）
-
-            #### macOS
-            - **Apple Silicon** (ARM64) - 适用于 M1/M2/M3 及更新的 Mac
-            - **Intel** (x86_64) - 适用于 Intel 芯片的 Mac
-
-            #### Linux
-            - AppImage - 通用 Linux 发行版
-            - deb - Ubuntu/Debian 系
-            - rpm - CentOS/Fedora 系
-
-            **Powered by sing-box v${{ env.SINGBOX_VERSION }}**
-
-            #### macOS
-            - **Apple Silicon** (ARM64) - 适用于 M1/M2/M3 及更新的 Mac
-            - **Intel** (x86_64) - 适用于 Intel 芯片的 Mac
-
-            #### Linux
-            - AppImage - 通用 Linux 发行版
-            - deb - Ubuntu/Debian 系
-            - rpm - CentOS/Fedora 系
-
-            ### 安装步骤
-            1. 下载对应平台的安装包
-            2. 运行安装程序
-            3. 按照提示完成安装
-
-            ---
-            See the assets below to download and install.
+          releaseBody: ${{ steps.release_notes.outputs.body }}
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
