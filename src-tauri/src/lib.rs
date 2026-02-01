@@ -151,6 +151,7 @@ pub fn run() {
             latency::http_ping,
             settings::get_settings,
             settings::save_settings,
+            settings::get_local_ip,
             assets::check_assets,
             assets::download_assets,
         ])

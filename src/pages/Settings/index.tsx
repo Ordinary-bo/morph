@@ -9,6 +9,7 @@ import {
   App,
   Input,
   Tag,
+  Typography,
 } from "antd";
 import {
   CloudDownloadOutlined,
@@ -17,24 +18,30 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   PlusOutlined,
+  ShareAltOutlined,
 } from "@ant-design/icons";
 import { invoke } from "@tauri-apps/api/core";
 import { enable, isEnabled, disable } from "@tauri-apps/plugin-autostart";
 
+const { Text } = Typography;
+
 interface AppSettings {
   mixed_port: number;
-  whitelist: string[]; // ✅ 新增
+  whitelist: string[];
+  allow_lan: boolean;
 }
 
 const SettingsPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [autostart, setAutostart] = useState(false);
   const [assetsReady, setAssetsReady] = useState(false);
+  const [localIp, setLocalIp] = useState("正在获取..."); // ✅ 存储 IP 状态
   const [settings, setSettings] = useState<AppSettings>({
     mixed_port: 2080,
     whitelist: [],
+    allow_lan: false,
   });
-  const [newDomain, setNewDomain] = useState(""); // 输入框状态
+  const [newDomain, setNewDomain] = useState("");
 
   const { message } = App.useApp();
   const [form] = Form.useForm();
@@ -47,6 +54,10 @@ const SettingsPage: React.FC = () => {
       setSettings(s);
       form.setFieldsValue(s);
     });
+    // ✅ 获取本机 IP
+    invoke<string>("get_local_ip")
+      .then(setLocalIp)
+      .catch(() => setLocalIp("未知"));
   }, [form]);
 
   // 处理开机自启
@@ -69,7 +80,6 @@ const SettingsPage: React.FC = () => {
     try {
       await invoke("save_settings", { settings: newSettings });
       setSettings(newSettings);
-      // 可以在这里提示用户“重启代理后生效”
     } catch (e) {
       message.error("保存失败");
     }
@@ -80,6 +90,13 @@ const SettingsPage: React.FC = () => {
     const newSettings = { ...settings, mixed_port: values.mixed_port };
     await saveAllSettings(newSettings);
     message.success("端口已保存，重启代理后生效");
+  };
+
+  // 处理局域网开关
+  const handleAllowLanChange = async (checked: boolean) => {
+    const newSettings = { ...settings, allow_lan: checked };
+    await saveAllSettings(newSettings);
+    message.success(checked ? "允许局域网连接已开启" : "允许局域网连接已关闭");
   };
 
   // 资源下载
@@ -97,7 +114,7 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  // ✅ 白名单操作：添加
+  // 白名单操作：添加
   const addWhitelist = () => {
     if (!newDomain) return;
     if (settings.whitelist.includes(newDomain)) {
@@ -111,7 +128,7 @@ const SettingsPage: React.FC = () => {
     message.success("已添加白名单");
   };
 
-  // ✅ 白名单操作：删除
+  // 白名单操作：删除
   const removeWhitelist = (domain: string) => {
     const newWhiteList = settings.whitelist.filter((d) => d !== domain);
     const newSettings = { ...settings, whitelist: newWhiteList };
@@ -158,9 +175,39 @@ const SettingsPage: React.FC = () => {
             </Button>
           </div>
         </Form>
+
+        <List className="mt-4 border-t border-gray-100 pt-2">
+          <List.Item
+            extra={
+              <Switch
+                checked={settings.allow_lan}
+                onChange={handleAllowLanChange}
+              />
+            }
+          >
+            <List.Item.Meta
+              avatar={<ShareAltOutlined className="text-xl text-green-500" />}
+              title="允许局域网连接"
+              // ✅ 显示 IP 信息
+              description={
+                <div className="flex flex-col gap-1">
+                  <span>
+                    开启后，局域网内的其他设备可连接此电脑的 IP 和端口使用代理
+                  </span>
+                  <div className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded w-fit border border-gray-100 mt-1">
+                    当前局域网 IP:{" "}
+                    <Text code copyable>
+                      {localIp}
+                    </Text>
+                  </div>
+                </div>
+              }
+            />
+          </List.Item>
+        </List>
       </Card>
 
-      {/* 3. 白名单设置 (新增) */}
+      {/* 3. 白名单设置 */}
       <Card
         title="直连白名单 (仅 Rule 模式生效)"
         variant="borderless"
