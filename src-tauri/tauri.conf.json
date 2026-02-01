@@ -72,5 +72,15 @@
         "installMode": "currentUser"
       }
     }
+  },
+"plugins": {
+  "updater": {
+    "active": true,
+    "endpoints": [
+      "https://github.com/Ordinary-bo/morph/releases/latest/download/latest.json"
+    ],
+    "dialog": false,
+    "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDg4NDNDREI1OEY0N0I5QUEKUldTcXVVZVB0YzFEaUhkT0FxQW5TRDlHYlltQ2t0V1R2TlFQaGVncFNsc3Z2c3lwUzN2blVRSmgK" 
   }
+}
 }

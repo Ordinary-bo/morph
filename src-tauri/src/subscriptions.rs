@@ -1,14 +1,16 @@
+use base64::{engine::general_purpose, Engine as _};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
-use base64::{Engine as _, engine::general_purpose};
 use url::Url;
 
 // --- 1. 数据结构定义 ---
 
 // 辅助函数：让 serde 默认值为 true
-fn default_true() -> bool { true }
+fn default_true() -> bool {
+    true
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Node {
@@ -29,21 +31,24 @@ pub struct Node {
 pub struct Subscription {
     pub url: String,
     pub name: String,
-    pub status: String,      // "active" | "error" | "new"
+    pub status: String, // "active" | "error" | "new"
     pub last_updated: String,
-    
-    // 新增字段：是否启用 (默认开启)
-    #[serde(default = "default_true")] 
-    pub enabled: bool, 
 
-    #[serde(default)] 
-    pub nodes: Vec<Node>, 
+    // 新增字段：是否启用 (默认开启)
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+
+    #[serde(default)]
+    pub nodes: Vec<Node>,
 }
 
 // --- 2. 文件与路径辅助函数 ---
 
 fn get_data_path(app_handle: &AppHandle) -> PathBuf {
-    let mut path = app_handle.path().app_data_dir().expect("failed to get app data dir");
+    let mut path = app_handle
+        .path()
+        .app_data_dir()
+        .expect("failed to get app data dir");
     if !path.exists() {
         fs::create_dir_all(&path).expect("failed to create data dir");
     }
@@ -94,7 +99,10 @@ fn decode_base64(input: &str) -> Result<String, String> {
 // VMess JSON 结构
 #[derive(Deserialize)]
 struct VmessJson {
-    ps: String, add: String, port: serde_json::Value, id: String, 
+    ps: String,
+    add: String,
+    port: serde_json::Value,
+    id: String,
     // net: Option<String>, tls: Option<String>
 }
 
@@ -126,14 +134,16 @@ fn parse_vmess(link: &str) -> Option<Node> {
 // Trojan 解析
 fn parse_trojan(link: &str) -> Option<Node> {
     let parsed_url = Url::parse(link).ok()?;
-    
+
     let host = parsed_url.host_str()?.to_string();
     let port = parsed_url.port().unwrap_or(443);
     let password = parsed_url.username().to_string();
-    
+
     // URL 解码节点名称
     let raw_fragment = parsed_url.fragment().unwrap_or("Unknown Trojan");
-    let name = urlencoding::decode(raw_fragment).unwrap_or(std::borrow::Cow::Borrowed(raw_fragment)).to_string();
+    let name = urlencoding::decode(raw_fragment)
+        .unwrap_or(std::borrow::Cow::Borrowed(raw_fragment))
+        .to_string();
 
     let mut sni = None;
     let mut allow_insecure = false;
@@ -170,7 +180,11 @@ pub fn get_subscriptions(app: AppHandle) -> Result<Vec<Subscription>, String> {
 }
 
 #[tauri::command]
-pub async fn add_subscription(app: AppHandle, name: String, url: String) -> Result<Vec<Subscription>, String> {
+pub async fn add_subscription(
+    app: AppHandle,
+    name: String,
+    url: String,
+) -> Result<Vec<Subscription>, String> {
     let path = get_data_path(&app);
     let mut current_data = load_from_disk(&path);
 
@@ -202,7 +216,11 @@ pub fn delete_subscription(app: AppHandle, url: String) -> Result<Vec<Subscripti
 
 // 新增：切换启用状态
 #[tauri::command]
-pub fn toggle_subscription_enabled(app: AppHandle, url: String, enabled: bool) -> Result<Vec<Subscription>, String> {
+pub fn toggle_subscription_enabled(
+    app: AppHandle,
+    url: String,
+    enabled: bool,
+) -> Result<Vec<Subscription>, String> {
     let path = get_data_path(&app);
     let mut current_data = load_from_disk(&path);
 
@@ -230,24 +248,27 @@ pub async fn update_all_subscriptions(app: AppHandle) -> Result<Vec<Subscription
 
         println!(">> 正在请求订阅源: {}", sub.url);
         let client = reqwest::Client::new();
-        
-        match client.get(&sub.url)
+
+        match client
+            .get(&sub.url)
             .header("User-Agent", "v2rayng/1.8.5") // 模拟客户端
             .send()
-            .await 
+            .await
         {
             Ok(resp) => {
                 if let Ok(text) = resp.text().await {
                     // Base64 解码，如果失败则假设是明文
                     let decoded = match decode_base64(&text) {
                         Ok(d) => d,
-                        Err(_) => text
+                        Err(_) => text,
                     };
-                    
+
                     let mut nodes = Vec::new();
                     for line in decoded.lines() {
                         let line = line.trim();
-                        if line.is_empty() { continue; }
+                        if line.is_empty() {
+                            continue;
+                        }
 
                         if line.starts_with("vmess://") {
                             if let Some(node) = parse_vmess(line) {
@@ -258,10 +279,10 @@ pub async fn update_all_subscriptions(app: AppHandle) -> Result<Vec<Subscription
                                 nodes.push(node);
                             }
                         } else if line.starts_with("ss://") {
-                             // SS暂未实现，需要时可添加
+                            // SS暂未实现，需要时可添加
                         }
                     }
-                    
+
                     println!("   解析完成，共找到 {} 个节点", nodes.len());
                     sub.nodes = nodes;
                     sub.status = "active".to_string();

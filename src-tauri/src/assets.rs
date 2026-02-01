@@ -1,7 +1,7 @@
-use tauri::{AppHandle, Manager}; // ✅ 核心修复：引入 Manager trait
 use std::fs;
-use std::path::PathBuf;
 use std::io::Write;
+use std::path::PathBuf;
+use tauri::{AppHandle, Manager}; // ✅ 核心修复：引入 Manager trait
 
 // 获取 AppData 目录
 fn get_assets_path(app: &AppHandle) -> Option<PathBuf> {
@@ -31,12 +31,17 @@ pub async fn download_assets(app: AppHandle) -> Result<String, String> {
     // 1. 下载 GeoIP
     let geoip_url = "https://github.com/SagerNet/sing-geoip/releases/latest/download/geoip.db";
     let geoip_path = path.join("geoip.db");
-    download_file(&client, geoip_url, &geoip_path).await.map_err(|e| format!("GeoIP下载失败: {}", e))?;
+    download_file(&client, geoip_url, &geoip_path)
+        .await
+        .map_err(|e| format!("GeoIP下载失败: {}", e))?;
 
     // 2. 下载 Geosite
-    let geosite_url = "https://github.com/SagerNet/sing-geosite/releases/latest/download/geosite.db";
+    let geosite_url =
+        "https://github.com/SagerNet/sing-geosite/releases/latest/download/geosite.db";
     let geosite_path = path.join("geosite.db");
-    download_file(&client, geosite_url, &geosite_path).await.map_err(|e| format!("Geosite下载失败: {}", e))?;
+    download_file(&client, geosite_url, &geosite_path)
+        .await
+        .map_err(|e| format!("Geosite下载失败: {}", e))?;
 
     Ok("资源下载完成".to_string())
 }

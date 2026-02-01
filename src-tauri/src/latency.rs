@@ -1,10 +1,10 @@
+use reqwest::{Client, Proxy};
 use std::net::TcpStream;
-use std::time::{Duration, Instant};
 use std::net::ToSocketAddrs;
-use reqwest::{Client, Proxy}; 
+use std::time::{Duration, Instant};
 
 const TCP_TIMEOUT_MS: u64 = 2000;
-const HTTP_TIMEOUT_MS: u64 = 8000; 
+const HTTP_TIMEOUT_MS: u64 = 8000;
 
 #[tauri::command]
 pub async fn tcp_ping(address: String, port: u16) -> i32 {
@@ -23,7 +23,7 @@ pub async fn tcp_ping(address: String, port: u16) -> i32 {
         Ok(_) => {
             let duration = start.elapsed();
             duration.as_millis() as i32
-        },
+        }
         Err(_) => -1,
     }
 }
@@ -42,11 +42,11 @@ pub async fn http_ping(url: String, proxy_url: Option<String>) -> i32 {
     if let Some(p_url) = proxy_url {
         if !p_url.is_empty() {
             // 打印日志，确认代理地址传进来了
-            println!(">>> HTTP测速使用代理: {}", p_url); 
+            println!(">>> HTTP测速使用代理: {}", p_url);
             match Proxy::all(&p_url) {
                 Ok(proxy) => {
                     builder = builder.proxy(proxy);
-                },
+                }
                 Err(e) => {
                     println!("❌ 代理地址格式错误: {}", e);
                     return -1;

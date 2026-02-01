@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::net::UdpSocket;
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
-use std::net::UdpSocket; 
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AppSettings {
@@ -23,7 +23,7 @@ impl Default for AppSettings {
                 "baidu.com".to_string(),
                 "qq.com".to_string(),
             ],
-            allow_lan: false, 
+            allow_lan: false,
         }
     }
 }
@@ -63,16 +63,12 @@ pub fn get_local_ip() -> String {
     // 这不会真正发送任何数据包，但操作系统会告诉我们
     // 如果要到达那个地址，应该使用哪个本地网络接口的 IP。
     match UdpSocket::bind("0.0.0.0:0") {
-        Ok(socket) => {
-            match socket.connect("8.8.8.8:80") {
-                Ok(_) => {
-                    match socket.local_addr() {
-                        Ok(addr) => addr.ip().to_string(),
-                        Err(_) => "无法获取 IP".to_string(),
-                    }
-                },
+        Ok(socket) => match socket.connect("8.8.8.8:80") {
+            Ok(_) => match socket.local_addr() {
+                Ok(addr) => addr.ip().to_string(),
                 Err(_) => "无法获取 IP".to_string(),
-            }
+            },
+            Err(_) => "无法获取 IP".to_string(),
         },
         Err(_) => "无法获取 IP".to_string(),
     }
