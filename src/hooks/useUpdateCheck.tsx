@@ -100,11 +100,7 @@ export const useUpdateCheck = () => {
           const hideLoading = message.loading("正在下载更新，请稍候...", 0);
 
           try {
-            // ✅ 4. 简化了下载逻辑，去掉了没用的 contentLength 计算
-            // 因为 Modal.confirm 很难显示实时进度条，我们只展示 "loading" 状态
-            await update.downloadAndInstall((event) => {
-              // 只是为了防止连接断开，这里其实不需要做太多操作
-              // 如果你想看进度，可以 console.log(event);
+            await update.downloadAndInstall(() => {
             });
 
             hideLoading();
