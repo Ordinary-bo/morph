@@ -1,92 +1,145 @@
-import React, { useEffect, useRef } from "react";
+import { FC, useEffect, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
-// 引入 xterm 的样式文件 (必须)
 import "xterm/css/xterm.css";
 
-const LogsPage: React.FC = () => {
-  // 引用挂载点
-  const terminalRef = useRef<HTMLDivElement>(null);
-  // 保存 terminal 实例，防止重复创建
-  const xtermRef = useRef<{ term: Terminal; fitAddon: FitAddon } | null>(null);
+const LogsPage: FC = () => {
+  const terminalContainerRef = useRef<HTMLDivElement>(null);
+  const xtermInstance = useRef<{ term: Terminal; fitAddon: FitAddon } | null>(
+    null
+  );
+  const isInitialized = useRef(false);
 
   useEffect(() => {
-    if (!terminalRef.current) return;
+    // 1. 定义初始化函数
+    const initTerminal = () => {
+      if (isInitialized.current || !terminalContainerRef.current) return;
 
-    // 1. 初始化 Terminal
-    const term = new Terminal({
-      cursorBlink: true,
-      convertEol: true, // 重要：把 \n 转换为 \r\n，防止阶梯状输出
-      fontFamily: '"Cascadia Code", Menlo, monospace',
-      fontSize: 14,
-      theme: {
-        background: "#1e1e1e",
-        foreground: "#d4d4d4",
-        cursor: "#ffffff",
-        selectionBackground: "rgba(255, 255, 255, 0.3)",
-        black: "#000000",
-        red: "#f87171",
-        green: "#4ade80",
-        yellow: "#facc15",
-        blue: "#60a5fa",
-        magenta: "#c084fc",
-        cyan: "#22d3ee",
-        white: "#ffffff",
-        brightBlack: "#808080",
-        brightRed: "#f87171",
-        brightGreen: "#4ade80",
-        brightYellow: "#facc15",
-        brightBlue: "#60a5fa",
-        brightMagenta: "#c084fc",
-        brightCyan: "#22d3ee",
-        brightWhite: "#ffffff",
-      },
+      const container = terminalContainerRef.current;
+      if (container.clientWidth === 0 || container.clientHeight === 0) return;
+
+      // 初始化 Terminal
+      const term = new Terminal({
+        cursorBlink: true,
+        convertEol: true,
+        fontFamily: '"Cascadia Code", Menlo, monospace',
+        fontSize: 14,
+        disableStdin: true, 
+        rightClickSelectsWord: true, 
+        theme: {
+          background: "#1e1e1e",
+          foreground: "#d4d4d4",
+          cursor: "#ffffff",
+          selectionBackground: "rgba(255, 255, 255, 0.4)", // 增加选中高亮的透明度，让它更明显
+          black: "#000000",
+          red: "#f87171",
+          green: "#4ade80",
+          yellow: "#facc15",
+          blue: "#60a5fa",
+          magenta: "#c084fc",
+          cyan: "#22d3ee",
+          white: "#ffffff",
+          brightBlack: "#808080",
+          brightRed: "#f87171",
+          brightGreen: "#4ade80",
+          brightYellow: "#facc15",
+          brightBlue: "#60a5fa",
+          brightMagenta: "#c084fc",
+          brightCyan: "#22d3ee",
+          brightWhite: "#ffffff",
+        },
+      });
+
+      const fitAddon = new FitAddon();
+      term.loadAddon(fitAddon);
+
+      term.open(container);
+
+      // ✅ 新增功能：Ctrl + C 复制
+      term.attachCustomKeyEventHandler((arg) => {
+        if (arg.ctrlKey && arg.code === "KeyC" && arg.type === "keydown") {
+          const selection = term.getSelection();
+          if (selection) {
+            navigator.clipboard.writeText(selection);
+            return false; // 阻止默认的 Ctrl+C 发送给后端（虽然 disableStdin 已经禁了，但双重保险）
+          }
+        }
+        return true;
+      });
+
+      // ✅ 新增功能：右键点击复制选中内容
+      // 注意：xterm 的 canvas 可能会拦截 contextmenu，这里监听容器
+      container.addEventListener("contextmenu", (e) => {
+        const selection = term.getSelection();
+        if (selection) {
+          e.preventDefault(); // 阻止浏览器默认右键菜单
+          navigator.clipboard.writeText(selection);
+          // 可选：给个视觉反馈，比如光标闪一下，或者在这里你可以 console.log 确认
+        }
+      });
+
+      try {
+        fitAddon.fit();
+      } catch (e) {}
+
+      term.writeln("\x1b[32m✔ Log Terminal Ready.\x1b[0m");
+      term.writeln(
+        "\x1b[90mTip: Select text and press Ctrl+C or Right Click to copy.\x1b[0m"
+      );
+      term.writeln("\x1b[90mWaiting for Sing-box core logs...\x1b[0m");
+
+      xtermInstance.current = { term, fitAddon };
+      isInitialized.current = true;
+    };
+
+    // 2. ResizeObserver 逻辑 (保持不变)
+    const resizeObserver = new ResizeObserver((entries) => {
+      if (!isInitialized.current) {
+        for (const entry of entries) {
+          if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
+            initTerminal();
+          }
+        }
+      } else {
+        window.requestAnimationFrame(() => {
+          try {
+            xtermInstance.current?.fitAddon.fit();
+          } catch (e) {}
+        });
+      }
     });
 
-    // 2. 加载自适应插件 (让终端填满父容器)
-    const fitAddon = new FitAddon();
-    term.loadAddon(fitAddon);
+    if (terminalContainerRef.current) {
+      resizeObserver.observe(terminalContainerRef.current);
+    }
 
-    // 3. 挂载到 DOM
-    term.open(terminalRef.current);
-    fitAddon.fit();
-
-    // 保存实例
-    xtermRef.current = { term, fitAddon };
-
-    // 初始欢迎语
-    term.writeln("\x1b[32m✔ Log Terminal Initialized.\x1b[0m");
-    term.writeln("\x1b[90mWaiting for Sing-box core logs...\x1b[0m");
-    term.writeln(""); // 空一行
-
-    // 4. 监听窗口大小变化，自动调整终端大小
-    const handleResize = () => fitAddon.fit();
-    window.addEventListener("resize", handleResize);
-
-    // 5. 监听 Rust 后端日志
-    // 注意：这里不需要清洗乱码了，xterm 会自动解析 ANSI 颜色！
+    // 3. 监听日志
     const unlistenPromise = listen<string>("app-log", (event) => {
-      // 写入终端
-      term.writeln(event.payload);
+      if (xtermInstance.current?.term) {
+        xtermInstance.current.term.writeln(event.payload);
+      }
     });
 
-    // 6. 清理函数
+    // 4. 清理
     return () => {
-      window.removeEventListener("resize", handleResize);
+      resizeObserver.disconnect();
       unlistenPromise.then((unlisten) => unlisten());
-      term.dispose(); // 销毁终端实例
+      if (xtermInstance.current) {
+        xtermInstance.current.term.dispose();
+        xtermInstance.current = null;
+      }
+      isInitialized.current = false;
     };
   }, []);
 
   return (
-    // 容器必须有明确的高度，否则 xterm 可能会塌陷
-    <div className="h-screen w-screen bg-[#1e1e1e] overflow-hidden flex flex-col">
-      {/* 这里的 div 是终端的实际挂载点 */}
-      <div 
-        ref={terminalRef} 
-        className="flex-1 w-full h-full" 
-        style={{ padding: '8px' }} // 给终端一点内边距
+    // ✅ 核心修复：添加 select-text 允许选择，并强制 cursor-text
+    <div className="h-screen w-screen bg-[#1e1e1e] overflow-hidden flex flex-col select-text cursor-text">
+      <div
+        ref={terminalContainerRef}
+        className="flex-1 w-full h-full"
+        style={{ padding: "8px", minWidth: "100px", minHeight: "100px" }}
       />
     </div>
   );
