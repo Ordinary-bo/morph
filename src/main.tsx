@@ -1,10 +1,24 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import "./styles/index.css";
+import { ConfigProvider, App as AntdApp } from "antd";
+import zhCN from 'antd/locale/zh_CN';
 import App from "./App";
+import './styles/index.css';
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <App />
+    <ConfigProvider
+      locale={zhCN}
+      theme={{
+        token: {
+          colorPrimary: "#6366F1",
+          borderRadius: 8, 
+        },
+      }}
+    >
+      <AntdApp>
+        <App />
+      </AntdApp>
+    </ConfigProvider>
   </React.StrictMode>
 );
