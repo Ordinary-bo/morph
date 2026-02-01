@@ -3,23 +3,28 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { App } from "antd";
 import { homeStore, useHomeStore } from "../../../store/homeStore";
+import { storage } from "../../../utils/storage";
 
 export function useProxyManager() {
   const { message } = App.useApp();
-  const { isRunning,connectedNodeId } = useHomeStore();
-  
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [mode, setMode] = useState<string>("Rule");
+  const { isRunning, connectedNodeId, selectedNodeId, mode } = useHomeStore();
   const [isSwitching, setIsSwitching] = useState(false);
   const isIntentionalStopRef = useRef(false);
+
+  const setSelectedNodeId = (id: string | null) => {
+    homeStore.setSelectedNodeId(id);
+    if (id) {
+        storage.setLastSelectedNodeId(id);
+    }
+  };
+  const setMode = (m: string) => homeStore.setMode(m);
 
   // 监听后端意外退出
   useEffect(() => {
     let unlisten: () => void;
     const setupListener = async () => {
-      unlisten = await listen("singbox-stopped", (event) => {
-        if (isIntentionalStopRef.current) return; // 如果是主动停止，则不处理
-        console.warn("Singbox backend stopped:", event.payload);
+      unlisten = await listen("singbox-stopped", () => {
+        if (isIntentionalStopRef.current) return;
         isIntentionalStopRef.current = false;
         if (homeStore.getSnapshot().isRunning) {
           homeStore.setIsRunning(false);
@@ -29,7 +34,9 @@ export function useProxyManager() {
       });
     };
     setupListener();
-    return () => { if (unlisten) unlisten(); };
+    return () => {
+      if (unlisten) unlisten();
+    };
   }, [message]);
 
   // 启动/停止逻辑
@@ -106,6 +113,6 @@ export function useProxyManager() {
     isSwitching,
     toggleProxy,
     handleSwitchNode,
-    handleModeChange
+    handleModeChange,
   };
 }

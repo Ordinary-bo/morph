@@ -1,19 +1,23 @@
 import { useSyncExternalStore } from "react";
 
-export type SortType = 'default' | 'name' | 'latency';
+export type SortType = "default" | "name" | "latency";
 
 interface HomeState {
   isRunning: boolean;
   latencies: Record<string, number>;
   sortType: SortType;
   connectedNodeId: string | null;
+  selectedNodeId: string | null;
+  mode: string;
 }
 
 let state: HomeState = {
   isRunning: false,
   latencies: {},
-  sortType: 'default',
+  sortType: "default",
   connectedNodeId: null,
+  selectedNodeId: null,
+  mode: "Rule",
 };
 
 const listeners = new Set<() => void>();
@@ -43,14 +47,13 @@ export const homeStore = {
     emitChange();
   },
 
-  // ✅ 新增：只更新单个节点的延迟 (性能更好，且支持实时刷新)
   updateLatency(id: string, latency: number) {
     state = {
       ...state,
       latencies: {
         ...state.latencies,
-        [id]: latency
-      }
+        [id]: latency,
+      },
     };
     emitChange();
   },
@@ -62,14 +65,33 @@ export const homeStore = {
   },
 
   setConnectedNodeId(id: string | null) {
-     if (state.connectedNodeId === id) return;
-    state = { ...state, connectedNodeId: id,isRunning: id !== null };
+    if (state.connectedNodeId === id) return;
+    state = { ...state, connectedNodeId: id, isRunning: id !== null };
+    emitChange();
+  },
+
+  setSelectedNodeId(id: string | null) {
+    if (state.selectedNodeId === id) return;
+    state = { ...state, selectedNodeId: id };
+    emitChange();
+  },
+
+  setMode(mode: string) {
+    if (state.mode === mode) return;
+    state = { ...state, mode };
     emitChange();
   },
   reset() {
-    state = { isRunning: false, latencies: {}, sortType: 'default',connectedNodeId: null };
+    state = {
+      isRunning: false,
+      latencies: {},
+      sortType: "default",
+      connectedNodeId: null,
+      selectedNodeId: null,
+      mode: "Rule",
+    };
     emitChange();
-  }
+  },
 };
 
 export const useHomeStore = () => {

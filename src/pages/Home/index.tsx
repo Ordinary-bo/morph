@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { GlobalOutlined } from "@ant-design/icons";
-import { useHomeStore } from "../../store/homeStore";
+import { useHomeStore, homeStore } from "../../store/homeStore";
+import { storage } from "../../utils/storage";
 
 // 引入 Hooks
 import { useNodeData } from "./hooks/useNodeData";
@@ -17,7 +18,7 @@ const HomePage: React.FC = () => {
   const { isRunning, latencies, connectedNodeId } = useHomeStore();
   // 2. 自定义 Hooks
   const { sortedNodes, nodes } = useNodeData(); // 节点数据
-  
+
   const {
     selectedNodeId,
     setSelectedNodeId,
@@ -25,7 +26,7 @@ const HomePage: React.FC = () => {
     isSwitching,
     toggleProxy,
     handleSwitchNode,
-    handleModeChange
+    handleModeChange,
   } = useProxyManager(); // 核心控制
 
   const {
@@ -36,28 +37,50 @@ const HomePage: React.FC = () => {
     clearUrlDelay,
     runBatchTcpPing,
     runHttpConnectivityTest,
-    currentTestUrlObj
+    currentTestUrlObj,
   } = useNetworkTester(); // 测速逻辑
 
   // 3. 副作用处理
-  // 初始化默认选中第一个节点
+  // ✅ 核心修改：初始化默认选中逻辑
   useEffect(() => {
-    if (connectedNodeId !== null && !selectedNodeId)
-      return setSelectedNodeId(connectedNodeId);
-    if (!selectedNodeId && nodes.length > 0) {
-      setSelectedNodeId(nodes[0].id);
+    const initSelection = () => {
+      // A. 如果当前已经在运行（比如刷新页面但后端还在跑），优先同步运行中的节点
+      if (connectedNodeId && !selectedNodeId) {
+        homeStore.setSelectedNodeId(connectedNodeId);
+        return;
+      }
+
+      // B. 如果当前没有选中任何节点，且列表不为空
+      if (!selectedNodeId && nodes.length > 0) {
+        // 尝试从 storage 读取上次的选择
+        const lastId = storage.getLastSelectedNodeId();
+
+        // 检查这个 ID 是否还存在于当前的节点列表中
+        const targetNode = lastId ? nodes.find((n) => n.id === lastId) : null;
+
+        if (targetNode) {
+          homeStore.setSelectedNodeId(targetNode.id);
+        } else {
+          // 如果没找到（比如上次用的节点被删了，或者是第一次用），则默认选第一个
+          homeStore.setSelectedNodeId(nodes[0].id);
+        }
+      }
+    };
+
+    if (nodes.length > 0) {
+      initSelection();
     }
-  }, [nodes, selectedNodeId, setSelectedNodeId]);
+  }, [nodes, connectedNodeId, selectedNodeId]);
 
   // 当停止代理或切换节点时，清理旧的测速结果
   useEffect(() => {
     if (!isRunning) clearUrlDelay();
   }, [isRunning, clearUrlDelay]);
-  
+
   // 在切换节点时也清理测速结果
   const onSwitchNodeWrapper = async () => {
-      await handleSwitchNode();
-      clearUrlDelay();
+    await handleSwitchNode();
+    clearUrlDelay();
   };
 
   // 4. 计算当前用于显示的节点对象
@@ -67,7 +90,6 @@ const HomePage: React.FC = () => {
   return (
     <div className="h-full flex flex-col bg-gray-50">
       <div className="bg-white px-6 py-4 shadow-sm border-b border-gray-100 relative z-10">
-        
         {/* 顶部状态卡片 */}
         <StatusCard
           isRunning={isRunning}
