@@ -60,8 +60,6 @@ pub fn run() {
 
                 let menu = Menu::with_items(app, &[&show_i, &toggle_i, &quit_i])?;
 
-                // 👇👇👇 1. 创建一个“上次点击时间”的记录器 (线程安全)
-                // 初始化为很久以前，确保第一次点击一定生效
                 let last_click_time =
                     Arc::new(Mutex::new(Instant::now() - Duration::from_secs(10)));
                 // 克隆一份给 move 闭包使用
@@ -89,10 +87,8 @@ pub fn run() {
                         _ => {}
                     })
                     .on_tray_icon_event(move |tray, event| {
-                        // 注意这里加了 move
-                        // 👇👇👇 2. 拦截双击事件，防止干扰
                         if let TrayIconEvent::DoubleClick { .. } = event {
-                            return; // 双击事件直接忽略，只处理单击
+                            return; 
                         }
 
                         if let TrayIconEvent::Click {
@@ -100,32 +96,19 @@ pub fn run() {
                             ..
                         } = event
                         {
-                            // 👇👇👇 3. 防抖逻辑核心
                             let now = Instant::now();
                             let mut last = last_click_for_closure.lock().unwrap();
 
-                            // 如果距离上次点击不足 400 毫秒，直接忽略本次操作
                             if now.duration_since(*last) < Duration::from_millis(400) {
                                 return;
                             }
-                            // 更新最后点击时间
                             *last = now;
-                            // 👆👆👆 防抖结束
 
                             let app = tray.app_handle();
                             if let Some(win) = app.get_webview_window("main") {
-                                let is_visible = win.is_visible().unwrap_or(false);
-                                let is_minimized = win.is_minimized().unwrap_or(false);
-
-                                if is_visible && !is_minimized {
-                                    let _ = win.hide();
-                                } else {
-                                    if is_minimized {
-                                        let _ = win.unminimize();
-                                    }
-                                    let _ = win.show();
-                                    let _ = win.set_focus();
-                                }
+                                let _ = win.unminimize();
+                                let _ = win.show();
+                                let _ = win.set_focus();
                             }
                         }
                     })

@@ -4,7 +4,6 @@ use std::fs;
 use std::path::PathBuf;
 use sysproxy::Sysproxy;
 use std::process::Command; 
-use std::os::windows::process::CommandExt;
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 
