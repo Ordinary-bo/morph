@@ -2,6 +2,7 @@ import {
   AppstoreOutlined,
   HomeOutlined,
   SettingOutlined,
+  RocketOutlined
 } from "@ant-design/icons";
 import { Layout as AntdLayout, Button, Menu, theme, App } from "antd";
 import { FC, useState, useEffect, useMemo } from "react";
@@ -10,7 +11,8 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event"; 
 import { invoke } from "@tauri-apps/api/core"; 
-import { homeStore } from "../store/homeStore"; 
+import { homeStore } from "../store/homeStore";
+import { useUpdateCheck } from "../hooks/useUpdateCheck";
 
 import {
   TerminalSvgIcon,
@@ -72,10 +74,13 @@ const Layout: FC = () => {
   const [collapsed, setCollapsed] = useState(true);
   const [isMaximized, setIsMaximized] = useState(false);
   const location = useLocation();
-  const { message } = App.useApp(); // ✅ 获取全局 Message
+  const { message } = App.useApp();
+  
+  // ✅ 使用 Hook
+  const { checkUpdate } = useUpdateCheck();
 
   const {
-    token: { colorBgContainer },
+    token: { colorBgContainer, colorPrimary },
   } = theme.useToken();
 
   useEffect(() => {
@@ -83,15 +88,18 @@ const Layout: FC = () => {
     const unlisten = appWindow.onResized(async () => {
       setIsMaximized(await appWindow.isMaximized());
     });
+    
+    // ✅ 启动时静默检查更新 (true 代表 silent mode)
+    checkUpdate(true);
+
     return () => {
       unlisten.then((f) => f());
     };
-  }, []);
+  }, []); // 空依赖数组，只在启动时执行一次
 
-  // ✅ 核心修复：监听托盘点击事件 (全局有效)
+  // 监听托盘点击事件
   useEffect(() => {
     const unlistenPromise = listen("tray-toggle-proxy", async () => {
-      // 直接从 store 获取快照，无需 state 依赖
       const { isRunning, selectedNodeId, mode } = homeStore.getSnapshot();
 
       if (isRunning) {
@@ -102,7 +110,6 @@ const Layout: FC = () => {
           await invoke("stop_singbox");
           message.success("代理已停止");
         } catch (e) {
-          // 失败回滚
           homeStore.setIsRunning(true);
         }
       } else {
@@ -186,9 +193,16 @@ const Layout: FC = () => {
           onCollapse={(value) => setCollapsed(value)}
           theme="light"
         >
-          <div className="h-14 flex items-center justify-center text-xl font-bold text-gray-700">
-            {collapsed ? "代理" : "代理"}
+          <div className="h-16 flex items-center justify-center border-b border-gray-100 mb-2 overflow-hidden">
+             {collapsed ? (
+                 <RocketOutlined style={{ fontSize: 24, color: colorPrimary }} />
+             ) : (
+                 <span className="text-2xl font-black italic tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-600">
+                    Morph
+                 </span>
+             )}
           </div>
+          
           <Menu
             mode="inline"
             selectedKeys={getSelectedKey}
