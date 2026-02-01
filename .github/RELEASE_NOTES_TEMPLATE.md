@@ -1,22 +1,20 @@
-## Morph v__VERSION__
+# 更新日志
 
-### 📥 下载说明
+## [0.1.1] - 2026-02-01
 
-#### Windows
-- **x86_64** (64-bit) - 适用于大多数现代 Windows 电脑
-- **i686** (32-bit) - 适用于 32 位 Windows 系统
-- **ARM64** - 适用于 ARM 架构的 Windows 设备
+### 新增功能
+- 新增局域网连接功能，支持局域网内其他设备使用代理
+- 显示当前局域网IP地址，方便局域网设备连接
 
-**安装包类型：**
-- `.msi` - Windows Installer（需要管理员权限）
-- `.exe` - NSIS Installer（推荐，无需管理员权限）
+### 修复
+- 修复托盘交互问题，优化用户体验
+- 修复日志显示相关问题
 
-**Powered by sing-box v__SINGBOX_VERSION__**
-
-### 安装步骤
-1. 下载对应平台的安装包
-2. 运行安装程序
-3. 按照提示完成安装
+### 改进
+- 优化主题配色方案
+- 改进系统托盘功能
 
 ---
-See the assets below to download and install.
+
+## [0.1.0] - Initial Release
+- 项目初始版本
