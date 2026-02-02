@@ -30,7 +30,9 @@ export const useUpdateCheck = () => {
       // 检查更新
       const update = await check();
 
-      if (update && update.available) {
+      // 只要有新版本号且与当前版本不同就提示更新
+      // 最低支持版本和强制更新请在 Release Notes 中写：[force-update] [min-version: 0.0.2]
+      if (update && update.version && compareVersions(update.version, update.currentVersion) > 0) {
         let isForce = false;
         const body = update.body || "";
 
