@@ -4,8 +4,8 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { Modal, message } from "antd";
 import { RocketOutlined } from "@ant-design/icons";
 
-const FORCE_FLAG = "";
-const MIN_SUPPORTED_REGEX = '0.1.0';
+const FORCE_FLAG = "[force-update]";
+const MIN_SUPPORTED_REGEX = /\[min-version:\s*([0-9]+(?:\.[0-9]+)*)\]/i;
 
 export const useUpdateCheck = () => {
   const [checking, setChecking] = useState(false);
@@ -41,7 +41,7 @@ export const useUpdateCheck = () => {
 
         // 检测最低兼容版本
         const match = body.match(MIN_SUPPORTED_REGEX);
-        if (match && match[1]) {
+        if (match?.[1]) {
           if (compareVersions(update.currentVersion, match[1]) < 0) {
             isForce = true;
           }
@@ -80,7 +80,7 @@ export const useUpdateCheck = () => {
           <div className="text-gray-600 text-sm max-h-60 overflow-y-auto whitespace-pre-wrap font-mono bg-gray-50 p-3 rounded">
             {/* 过滤掉暗号显示 */}
             {update.body
-              ?.replace(FORCE_FLAG, "")
+              ?.replace(new RegExp(FORCE_FLAG, "g"), "")
               .replace(MIN_SUPPORTED_REGEX, "")
               .trim() || "暂无更新日志"}
           </div>
