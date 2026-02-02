@@ -15,6 +15,16 @@ pub mod settings;
 pub mod singbox;
 pub mod subscriptions;
 
+#[tauri::command]
+fn open_devtools(app: AppHandle) -> Result<(), String> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or("未找到主窗口")?;
+    window.open_devtools();
+    let _ = window.set_focus();
+    Ok(())
+}
+
 fn cleanup_on_exit(app: &AppHandle) {
     println!(">>> App Shutdown: Starting cleanup...");
     let state_guard = app.state::<SingBoxState>().clone();
@@ -153,6 +163,7 @@ pub fn run() {
             settings::get_local_ip,
             assets::check_assets,
             assets::download_assets,
+            open_devtools,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

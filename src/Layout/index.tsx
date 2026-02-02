@@ -2,15 +2,16 @@ import {
   AppstoreOutlined,
   HomeOutlined,
   SettingOutlined,
-  RocketOutlined
+  RocketOutlined,
+  DesktopOutlined,
 } from "@ant-design/icons";
 import { Layout as AntdLayout, Button, Menu, theme, App } from "antd";
 import { FC, useState, useEffect, useMemo } from "react";
 import { Link, Outlet, useLocation } from "react-router";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { listen } from "@tauri-apps/api/event"; 
-import { invoke } from "@tauri-apps/api/core"; 
+import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 import { homeStore } from "../store/homeStore";
 import { useUpdateCheck } from "../hooks/useUpdateCheck";
 
@@ -70,12 +71,16 @@ const handleOpenWindow = async () => {
   newWin.once("tauri://error", (e) => console.error("日志窗口创建失败", e));
 };
 
+const handleOpenConsole = async () => {
+  await invoke("open_devtools");
+};
+
 const Layout: FC = () => {
   const [collapsed, setCollapsed] = useState(true);
   const [isMaximized, setIsMaximized] = useState(false);
   const location = useLocation();
   const { message } = App.useApp();
-  
+
   // ✅ 使用 Hook
   const { checkUpdate } = useUpdateCheck();
 
@@ -88,7 +93,7 @@ const Layout: FC = () => {
     const unlisten = appWindow.onResized(async () => {
       setIsMaximized(await appWindow.isMaximized());
     });
-    
+
     // ✅ 启动时静默检查更新 (true 代表 silent mode)
     checkUpdate(true);
 
@@ -152,6 +157,9 @@ const Layout: FC = () => {
           <Button type="text" onClick={handleOpenWindow} title="打开运行日志">
             <TerminalSvgIcon />
           </Button>
+          <Button type="text" onClick={handleOpenConsole} title="打开控制台">
+            <DesktopOutlined size={22} />
+          </Button>
         </div>
 
         <div className="flex items-center app-no-drag">
@@ -194,15 +202,15 @@ const Layout: FC = () => {
           theme="light"
         >
           <div className="h-16 flex items-center justify-center border-b border-gray-100 mb-2 overflow-hidden">
-             {collapsed ? (
-                 <RocketOutlined style={{ fontSize: 24, color: colorPrimary }} />
-             ) : (
-                 <span className="text-2xl font-black italic tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-600">
-                    Morph
-                 </span>
-             )}
+            {collapsed ? (
+              <RocketOutlined style={{ fontSize: 24, color: colorPrimary }} />
+            ) : (
+              <span className="text-2xl font-black italic tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-600">
+                Morph
+              </span>
+            )}
           </div>
-          
+
           <Menu
             mode="inline"
             selectedKeys={getSelectedKey}
