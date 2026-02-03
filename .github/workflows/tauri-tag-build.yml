@@ -119,8 +119,9 @@ jobs:
           tagName: v__VERSION__
           releaseName: 'Morph v__VERSION__'
           releaseBody: ${{ steps.release_notes.outputs.body }}
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           includeUpdaterJson: true
           updaterJsonPreferNsis: true
+          uploadPlainBinary: true
           args: ${{ matrix.args }}
