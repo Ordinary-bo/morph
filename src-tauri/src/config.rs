@@ -85,8 +85,6 @@ pub struct RouteRule {
     pub port: Option<Vec<u16>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub outbound: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub action: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -159,18 +157,7 @@ pub fn generate_singbox_config(
     // --- 路由规则 ---
     let mut rules = Vec::new();
 
-    // 1. DNS 拦截
-    rules.push(RouteRule {
-        protocol: Some(vec!["dns".to_string()]),
-        domain: None,
-        domain_suffix: None,
-        ip_cidr: None,
-        port: None,
-        outbound: None,
-        action: Some("hijack-dns".to_string()),
-    });
-
-    // 2. 节点域名直连
+    // 1. 节点域名直连
     rules.push(RouteRule {
         protocol: None,
         domain: Some(vec![node.address.clone()]),
@@ -178,10 +165,9 @@ pub fn generate_singbox_config(
         ip_cidr: None,
         port: None,
         outbound: Some("direct".to_string()),
-        action: None,
     });
 
-    // 3. 规则模式处理
+    // 2. 规则模式处理
     if mode == "Rule" {
         if !whitelist.is_empty() {
             rules.push(RouteRule {
@@ -191,7 +177,6 @@ pub fn generate_singbox_config(
                 ip_cidr: None,
                 port: None,
                 outbound: Some("direct".to_string()),
-                action: None,
             });
         }
 
@@ -202,11 +187,10 @@ pub fn generate_singbox_config(
             ip_cidr: None,
             port: None,
             outbound: Some("direct".to_string()),
-            action: None,
         });
     }
 
-    // 4. 兜底规则
+    // 3. 兜底规则
     let final_tag = match mode {
         "Direct" => "direct",
         _ => "proxy",
@@ -218,7 +202,6 @@ pub fn generate_singbox_config(
         ip_cidr: None,
         port: None,
         outbound: Some(final_tag.to_string()),
-        action: None,
     });
 
     // --- DNS 配置 ---
