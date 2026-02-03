@@ -65,21 +65,3 @@ const WinUIOpRestoreSvg = () => (
 export const WinUIOpRestoreSvgIcon = (props: Partial<CustomIconComponentProps>) => {
     return <Icon component={WinUIOpRestoreSvg} {...props} />
 }
-
-const Terminal = () => (
-    <svg width='22' height='22' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'>
-        <path
-            d='M5.33333 6.00002L7.33333 8.00002L5.33333 10M8.66667 10H10.6667M3.33333 13.3334H12.6667C13.403 13.3334 14 12.7364 14 12V4.00002C14 3.26364 13.403 2.66669 12.6667 2.66669H3.33333C2.59695 2.66669 2 3.26364 2 4.00002V12C2 12.7364 2.59695 13.3334 3.33333 13.3334Z'
-            stroke='currentColor'
-            strokeLinecap='round'
-            strokeLinejoin='round'
-        />
-    </svg>
-)
-
-/**
- * @description: terminal  代码
- */
-export const TerminalSvgIcon = (props: Partial<CustomIconComponentProps>) => {
-    return <Icon component={Terminal} {...props} />
-}

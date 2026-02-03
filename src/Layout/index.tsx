@@ -4,6 +4,7 @@ import {
   SettingOutlined,
   RocketOutlined,
   DesktopOutlined,
+  CodeOutlined,
 } from "@ant-design/icons";
 import { Layout as AntdLayout, Button, Menu, theme, App } from "antd";
 import { FC, useState, useEffect, useMemo } from "react";
@@ -16,7 +17,6 @@ import { homeStore } from "../store/homeStore";
 import { useUpdateCheck } from "../hooks/useUpdateCheck";
 
 import {
-  TerminalSvgIcon,
   WinUIOpCloseSvgIcon,
   WinUIOpMaxSvgIcon,
   WinUIOpMinSvgIcon,
@@ -155,7 +155,7 @@ const Layout: FC = () => {
       >
         <div className="flex items-center">
           <Button type="text" onClick={handleOpenWindow} title="打开运行日志">
-            <TerminalSvgIcon />
+            <CodeOutlined size={22} />
           </Button>
           <Button type="text" onClick={handleOpenConsole} title="打开控制台">
             <DesktopOutlined size={22} />

@@ -121,5 +121,6 @@ jobs:
           releaseBody: ${{ steps.release_notes.outputs.body }}
           releaseDraft: true
           prerelease: false
+          updaterJson: true
           updaterJsonPreferNsis: true
           args: ${{ matrix.args }}
