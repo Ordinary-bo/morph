@@ -44,7 +44,7 @@
     "shortDescription": "A simple proxy client using sing-box",
     "longDescription": "Morph is a modern, lightweight proxy management tool built with Tauri and sing-box core.",
     "publisher": "Morph",
-    "createUpdaterArtifacts": "true",
+    "createUpdaterArtifacts": "v1Compatible",
     "windows": {
       "certificateThumbprint": null,
       "timestampUrl": null,
